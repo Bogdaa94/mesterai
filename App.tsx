@@ -12,6 +12,7 @@ import {
 } from '@expo-google-fonts/dm-sans';
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
+import { AuthProvider } from './src/context/AuthContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function AppContent() {
@@ -36,8 +37,10 @@ export default function App() {
   if (!fontsLoaded) return null;
 
   return (
-    <ThemeProvider>
-      <AppContent />
-    </ThemeProvider>
+    <AuthProvider>
+      <ThemeProvider>
+        <AppContent />
+      </ThemeProvider>
+    </AuthProvider>
   );
 }
