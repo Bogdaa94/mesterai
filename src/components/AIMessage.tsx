@@ -1,5 +1,6 @@
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Image, StyleSheet } from 'react-native';
+import Markdown from 'react-native-markdown-display';
 import { useTheme } from '../context/ThemeContext';
 
 interface Props {
@@ -9,6 +10,28 @@ interface Props {
 export default function AIMessage({ message }: Props) {
   const { colors } = useTheme();
 
+  const markdownStyles = {
+    body: {
+      color: colors.textPrimary,
+      fontFamily: 'DMSans_400Regular',
+      fontSize: 14,
+      lineHeight: 22,
+    },
+    strong: {
+      fontFamily: 'DMSans_500Medium',
+      color: colors.textPrimary,
+    },
+    bullet_list: { color: colors.textPrimary },
+    ordered_list: { color: colors.textPrimary },
+    bullet_list_icon: { color: '#FF6B00' },
+    code_inline: {
+      backgroundColor: colors.bgCard2,
+      color: '#FF6B00',
+      borderRadius: 4,
+      padding: 2,
+    },
+  };
+
   return (
     <View style={styles.row}>
       <Image
@@ -17,7 +40,7 @@ export default function AIMessage({ message }: Props) {
         resizeMode="contain"
       />
       <View style={[styles.bubble, { backgroundColor: colors.bgCard }]}>
-        <Text style={[styles.text, { color: colors.textPrimary }]}>{message}</Text>
+        <Markdown style={markdownStyles}>{message}</Markdown>
       </View>
     </View>
   );
@@ -42,10 +65,5 @@ const styles = StyleSheet.create({
     borderRadius: 12,
     paddingHorizontal: 14,
     paddingVertical: 10,
-  },
-  text: {
-    fontFamily: 'DMSans_400Regular',
-    fontSize: 14,
-    lineHeight: 21,
   },
 });
