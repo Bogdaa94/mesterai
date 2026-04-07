@@ -100,7 +100,7 @@ function CategoryCard({ item, fullWidth }: { item: Category; fullWidth?: boolean
   return (
     <TouchableOpacity
       activeOpacity={0.75}
-      onPress={() => navigation.navigate('Category', { categoryId: item.id })}
+      onPress={() => navigation.navigate('Diagnostic', { categoryId: item.id })}
       style={[
         styles.categoryCard,
         {
@@ -205,7 +205,7 @@ export default function HomeScreen() {
         {/* CTA */}
         <TouchableOpacity
           activeOpacity={0.85}
-          onPress={() => navigation.navigate('Category', { categoryId: 'sanitare' })}
+          onPress={() => navigation.navigate('Diagnostic', { categoryId: 'sanitare' })}
           style={styles.cta}
         >
           <Text style={[styles.ctaText, { fontFamily: fonts.subheading }]}>
