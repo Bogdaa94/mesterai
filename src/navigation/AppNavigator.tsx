@@ -12,6 +12,7 @@ import { brand } from '../theme/colors';
 
 import AuthScreen from '../screens/auth/AuthScreen';
 import ConsentScreen from '../screens/auth/ConsentScreen';
+import SplashScreen from '../screens/SplashScreen';
 import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import DiagnosticScreen from '../screens/DiagnosticScreen';
@@ -35,6 +36,8 @@ export type TabParamList = {
   Istoric: undefined;
   Profil: undefined;
 };
+
+type FlowState = 'loading' | 'auth' | 'consent' | 'splash' | 'main';
 
 const CONSENT_KEY = (uid: string) => `consent_given_${uid}`;
 
@@ -62,8 +65,6 @@ function HomeStackNavigator() {
     </HomeStack.Navigator>
   );
 }
-
-// ── Icon helper ───────────────────────────────────────────────────────────────
 
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
@@ -107,33 +108,35 @@ function MainApp() {
 export default function AppNavigator() {
   const { colors } = useTheme();
   const { user, loading } = useAuth();
-  const [consentGiven, setConsentGiven] = useState<boolean | null>(null);
 
-  // Verifica consent din AsyncStorage (UX rapid)
+  // Un singur state atomic pentru flux — elimina problema de batching
+  const [flow, setFlow] = useState<FlowState>('loading');
+
   useEffect(() => {
-    if (!user) {
-      setConsentGiven(null);
+    if (loading) {
+      setFlow('loading');
+      console.log('[Nav] flow=loading (auth loading)');
       return;
     }
+
+    if (!user) {
+      setFlow('auth');
+      console.log('[Nav] flow=auth (no user)');
+      return;
+    }
+
+    // User autentificat — verifica consimtamantul din AsyncStorage
     AsyncStorage.getItem(CONSENT_KEY(user.uid)).then((val) => {
-      setConsentGiven(val === 'true');
+      const hasConsent = val === 'true';
+      const nextFlow: FlowState = hasConsent ? 'main' : 'consent';
+      setFlow(nextFlow);
+      console.log(`[Nav] user=${user.uid} hasConsent=${hasConsent} → flow=${nextFlow}`);
     });
-  }, [user]);
+  }, [user, loading]);
 
-  // Cand ConsentScreen salveaza cu succes, marcam in AsyncStorage
-  useEffect(() => {
-    if (!user) return;
-    const checkFirestore = async () => {
-      const { getUserProfile } = await import('../firebase/firestore');
-      // Polling simplu: dupa login fara cache, verifica Firestore
-      if (consentGiven === false) {
-        // Va fi actualizat de ConsentScreen prin AsyncStorage
-      }
-    };
-    checkFirestore();
-  }, [user, consentGiven]);
+  console.log(`[Nav] render: flow=${flow} user=${user?.uid ?? 'null'}`);
 
-  if (loading || (user && consentGiven === null)) {
+  if (flow === 'loading') {
     return (
       <View style={{ flex: 1, backgroundColor: colors.bgPage, justifyContent: 'center', alignItems: 'center' }}>
         <ActivityIndicator size="large" color={brand.orange} />
@@ -141,14 +144,34 @@ export default function AppNavigator() {
     );
   }
 
+  if (flow === 'splash') {
+    return (
+      <SplashScreen
+        onFinish={() => {
+          console.log('[Nav] splash finished → flow=main');
+          setFlow('main');
+        }}
+      />
+    );
+  }
+
   return (
     <NavigationContainer>
       <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        {!user ? (
+        {flow === 'auth' ? (
           <RootStack.Screen name="Auth" component={AuthScreen} />
-        ) : !consentGiven ? (
+        ) : flow === 'consent' ? (
           <RootStack.Screen name="Consent">
-            {() => <ConsentScreenWrapper onConsent={() => setConsentGiven(true)} userId={user.uid} />}
+            {() => (
+              <ConsentScreenWrapper
+                userId={user!.uid}
+                onConsent={() => {
+                  // Singura tranzitie atomica — fara batching issues
+                  console.log('[Nav] consent accepted → flow=splash');
+                  setFlow('splash');
+                }}
+              />
+            )}
           </RootStack.Screen>
         ) : (
           <RootStack.Screen name="Main" component={MainApp} />
@@ -158,14 +181,12 @@ export default function AppNavigator() {
   );
 }
 
-// ── ConsentScreen cu callback AsyncStorage ───────────────────────────────────
+// ── ConsentScreen cu salvare AsyncStorage ────────────────────────────────────
 
 function ConsentScreenWrapper({ onConsent, userId }: { onConsent: () => void; userId: string }) {
-  // Suprascriem saveConsent pentru a marca si in AsyncStorage
   const wrappedSave = async () => {
     await AsyncStorage.setItem(CONSENT_KEY(userId), 'true');
     onConsent();
   };
-
   return <ConsentScreen onConsentSaved={wrappedSave} />;
 }

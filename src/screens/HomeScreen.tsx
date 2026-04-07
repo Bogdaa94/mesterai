@@ -1,6 +1,7 @@
 import {
   View,
   Text,
+  Image,
   ScrollView,
   TouchableOpacity,
   StyleSheet,
@@ -64,15 +65,11 @@ function Header() {
   const { colors } = useTheme();
   return (
     <View style={[styles.header, { backgroundColor: colors.bgNav, borderBottomColor: colors.border }]}>
-      <View style={styles.logoRow}>
-        <Text style={[styles.logoText, { color: colors.textPrimary }]}>
-          Mester
-        </Text>
-        <View style={styles.logoDot} />
-        <Text style={[styles.logoText, { color: colors.textPrimary }]}>
-          AI
-        </Text>
-      </View>
+      <Image
+        source={require('../assets/logo.png')}
+        style={styles.headerLogo}
+        resizeMode="contain"
+      />
       <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.bgCard }]} activeOpacity={0.7}>
         <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -235,15 +232,9 @@ const styles = StyleSheet.create({
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
   },
-  logoRow: { flexDirection: 'row', alignItems: 'center', gap: 2 },
-  logoText: { fontSize: fontSizes.logo, fontFamily: fonts.heading },
-  logoDot: {
-    width: 6,
-    height: 6,
-    borderRadius: 3,
-    backgroundColor: brand.orange,
-    marginHorizontal: 2,
-    marginBottom: 8,
+  headerLogo: {
+    width: 36,
+    height: 36,
   },
   iconBtn: {
     width: 36,
