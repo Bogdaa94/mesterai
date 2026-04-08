@@ -176,6 +176,39 @@ export async function incrementDailyLimit(userId: string): Promise<void> {
   }
 }
 
+// ─── RAG — Conversații validate ───────────────────────────────────────────────
+
+export interface ValidatedConversation {
+  intrebare: string;
+  raspuns: string;
+  categorie: string;
+  timestamp: Timestamp | null;
+  votes: number;
+}
+
+export async function saveValidatedConversation(
+  categorie: string,
+  intrebare: string,
+  raspuns: string
+): Promise<void> {
+  const ref = collection(db, 'rag_knowledge', categorie, 'conversatii_validate');
+  await addDoc(ref, {
+    intrebare,
+    raspuns,
+    categorie,
+    timestamp: serverTimestamp(),
+    votes: 1,
+  });
+}
+
+export async function getValidatedConversations(
+  categorie: string
+): Promise<ValidatedConversation[]> {
+  const ref = collection(db, 'rag_knowledge', categorie, 'conversatii_validate');
+  const snap = await getDocs(ref);
+  return snap.docs.map((d) => d.data() as ValidatedConversation);
+}
+
 // ─── Reports ──────────────────────────────────────────────────────────────────
 
 export async function createReport(

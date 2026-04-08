@@ -4,6 +4,7 @@ import { deleteDoc, doc } from 'firebase/firestore';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { db } from '../firebase/config';
+import { uploadAllScenarii } from '../scripts/uploadRAG';
 
 export default function ProfileScreen() {
   const { colors } = useTheme();
@@ -35,6 +36,23 @@ export default function ProfileScreen() {
     );
   };
 
+  const handleUploadRAG = async () => {
+    Alert.alert('Upload RAG', 'Uploadează cele 75 scenarii în Firestore?', [
+      { text: 'Anulează', style: 'cancel' },
+      {
+        text: 'Upload',
+        onPress: async () => {
+          try {
+            const { success, errors } = await uploadAllScenarii();
+            Alert.alert('Done', `✓ ${success} scenarii uploadate, ✗ ${errors} erori.`);
+          } catch (e) {
+            Alert.alert('Eroare', String(e));
+          }
+        },
+      },
+    ]);
+  };
+
   return (
     <View style={[styles.container, { backgroundColor: colors.bgPage }]}>
       <Text style={{ color: colors.textPrimary }}>Profil</Text>
@@ -45,6 +63,13 @@ export default function ProfileScreen() {
         onPress={handleResetConsent}
       >
         <Text style={styles.devBtnText}>🛠 Reset Consent (dev)</Text>
+      </TouchableOpacity>
+
+      <TouchableOpacity
+        style={[styles.devBtn, { borderColor: colors.border }]}
+        onPress={handleUploadRAG}
+      >
+        <Text style={styles.devBtnText}>📦 Upload RAG Scenarii (dev)</Text>
       </TouchableOpacity>
     </View>
   );

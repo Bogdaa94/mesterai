@@ -9,8 +9,10 @@ import {
   KeyboardAvoidingView,
   Platform,
   ActivityIndicator,
+  Alert,
   StyleSheet,
 } from 'react-native';
+import * as ImagePicker from 'expo-image-picker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,6 +24,7 @@ import { brand } from '../theme/colors';
 import { askMester, ChatMessage } from '../services/gemini';
 import { saveProblem } from '../firebase/firestore';
 import { HomeStackParamList } from '../navigation/AppNavigator';
+import AIMessage from '../components/AIMessage';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
 
@@ -33,12 +36,16 @@ const CATEGORY_LABELS: Record<string, string> = {
   mobila:      'Mobilă',
 };
 
+const FREE_PHOTO_LIMIT = 1;
+
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 interface Message {
   id: string;
   role: 'user' | 'ai';
   text: string;
+  imageUri?: string;
+  questionText?: string;
 }
 
 type DiagRoute = RouteProp<HomeStackParamList, 'Diagnostic'>;
@@ -46,27 +53,17 @@ type DiagNav   = StackNavigationProp<HomeStackParamList, 'Diagnostic'>;
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function UserBubble({ text, colors }: { text: string; colors: any }) {
+function UserBubble({ text, imageUri }: { text: string; imageUri?: string; colors: any }) {
   return (
-    <View style={[bubbleStyles.userWrapper]}>
-      <View style={bubbleStyles.userBubble}>
-        <Text style={bubbleStyles.userText}>{text}</Text>
-      </View>
-    </View>
-  );
-}
-
-function AIBubble({ text, colors }: { text: string; colors: any }) {
-  return (
-    <View style={bubbleStyles.aiWrapper}>
-      <Image
-        source={require('../assets/logo.png')}
-        style={bubbleStyles.avatar}
-        resizeMode="contain"
-      />
-      <View style={[bubbleStyles.aiBubble, { backgroundColor: colors.bgCard }]}>
-        <Text style={[bubbleStyles.aiText, { color: colors.textPrimary }]}>{text}</Text>
-      </View>
+    <View style={bubbleStyles.userWrapper}>
+      {imageUri && (
+        <Image source={{ uri: imageUri }} style={bubbleStyles.userImage} resizeMode="cover" />
+      )}
+      {text ? (
+        <View style={bubbleStyles.userBubble}>
+          <Text style={bubbleStyles.userText}>{text}</Text>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -82,6 +79,14 @@ const bubbleStyles = StyleSheet.create({
     maxWidth: '80%',
   },
   userText: { color: '#fff', fontFamily: 'DMSans_400Regular', fontSize: 14, lineHeight: 20 },
+  userImage: {
+    width: 200,
+    height: 150,
+    borderRadius: 12,
+    marginBottom: 6,
+    borderWidth: 2,
+    borderColor: brand.orange,
+  },
 
   aiWrapper: { flexDirection: 'row', alignItems: 'flex-start', marginBottom: 12, paddingHorizontal: 16 },
   avatar: { width: 28, height: 28, marginRight: 10, marginTop: 2, flexShrink: 0 },
@@ -92,7 +97,6 @@ const bubbleStyles = StyleSheet.create({
     paddingHorizontal: 14,
     paddingVertical: 10,
   },
-  aiText: { fontFamily: 'DMSans_400Regular', fontSize: 14, lineHeight: 21 },
 });
 
 // ── Main screen ────────────────────────────────────────────────────────────────
@@ -113,48 +117,188 @@ export default function DiagnosticScreen() {
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
   const [saved, setSaved] = useState(false);
 
+  // Foto state
+  const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
+  const [pendingImageBase64, setPendingImageBase64] = useState<string | null>(null);
+  const [photoCount, setPhotoCount] = useState(0);
+
   const scrollRef = useRef<ScrollView>(null);
+  const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
+
+  // Cleanup interval la unmount
+  useEffect(() => {
+    return () => {
+      if (typewriterRef.current) clearInterval(typewriterRef.current);
+    };
+  }, []);
 
   // Primul mesaj automat de la AI
   useEffect(() => {
-    const greeting = `Bună! Sunt aici să te ajut cu ${categoryLabel}. Descrie-mi problema și rezolvăm împreună! 👇`;
+    const greeting = `Bună! Sunt aici să te ajut cu ${categoryLabel}. Descrie-mi problema sau trimite o poză și rezolvăm împreună! 👇`;
     setMessages([{ id: '0', role: 'ai', text: greeting }]);
   }, [categoryLabel]);
 
   const scrollToBottom = () => {
-    setTimeout(() => scrollRef.current?.scrollToEnd({ animated: true }), 100);
+    scrollRef.current?.scrollToEnd({ animated: false });
   };
+
+  // ── Typewriter ────────────────────────────────────────────────────────────────
+
+  const updateLastAiMessage = (text: string) => {
+    setMessages(prev => {
+      const copy = [...prev];
+      const lastIdx = copy.length - 1;
+      if (lastIdx >= 0 && copy[lastIdx].role === 'ai') {
+        copy[lastIdx] = { ...copy[lastIdx], text };
+      }
+      return copy;
+    });
+  };
+
+  const typeMessage = (fullText: string, onDone: () => void) => {
+    // Anulează orice interval anterior
+    if (typewriterRef.current) clearInterval(typewriterRef.current);
+
+    let index = 0;
+    typewriterRef.current = setInterval(() => {
+      index += 3;
+      updateLastAiMessage(fullText.substring(0, index));
+      scrollToBottom();
+      if (index >= fullText.length) {
+        clearInterval(typewriterRef.current!);
+        typewriterRef.current = null;
+        updateLastAiMessage(fullText); // text complet la final
+        scrollToBottom();
+        onDone();
+      }
+    }, 16); // ~60fps
+  };
+
+  // ── Photo picker ─────────────────────────────────────────────────────────────
+
+  const handlePickPhoto = async () => {
+    if (photoCount >= FREE_PHOTO_LIMIT) {
+      Alert.alert(
+        'Limită atinsă',
+        `Contul Free permite ${FREE_PHOTO_LIMIT} poză per conversație. Fă upgrade la PRO pentru poze nelimitate.`,
+        [{ text: 'OK' }]
+      );
+      return;
+    }
+
+    Alert.alert(
+      'Adaugă poză',
+      'Alege sursa fotografiei',
+      [
+        { text: 'Cameră',   onPress: () => openPicker('camera') },
+        { text: 'Galerie',  onPress: () => openPicker('gallery') },
+        { text: 'Anulează', style: 'cancel' },
+      ]
+    );
+  };
+
+  const openPicker = async (source: 'camera' | 'gallery') => {
+    let result: ImagePicker.ImagePickerResult;
+
+    if (source === 'camera') {
+      const { status } = await ImagePicker.requestCameraPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisiune necesară', 'Activează accesul la cameră din setări.');
+        return;
+      }
+      result = await ImagePicker.launchCameraAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        base64: true,
+      });
+    } else {
+      const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert('Permisiune necesară', 'Activează accesul la galerie din setări.');
+        return;
+      }
+      result = await ImagePicker.launchImageLibraryAsync({
+        mediaTypes: ImagePicker.MediaTypeOptions.Images,
+        quality: 0.7,
+        base64: true,
+      });
+    }
+
+    if (!result.canceled && result.assets[0]) {
+      const asset = result.assets[0];
+      setPendingImageUri(asset.uri);
+      setPendingImageBase64(asset.base64 ?? null);
+    }
+  };
+
+  const removePendingImage = () => {
+    setPendingImageUri(null);
+    setPendingImageBase64(null);
+  };
+
+  // ── Mic placeholder ──────────────────────────────────────────────────────────
+
+  const handleMic = () => {
+    Alert.alert('PRO', 'Inputul vocal este disponibil exclusiv pentru utilizatorii PRO.');
+  };
+
+  // ── Send ─────────────────────────────────────────────────────────────────────
 
   const handleSend = async () => {
     const text = input.trim();
-    if (!text || loading) return;
+    if ((!text && !pendingImageUri) || loading) return;
 
-    const userMsg: Message = { id: Date.now().toString(), role: 'user', text };
-    setMessages(prev => [...prev, userMsg]);
+    const imageUri = pendingImageUri;
+    const imageBase64 = pendingImageBase64;
+    const questionSnap = text || 'Analiză foto';
+    const aiMsgId = (Date.now() + 1).toString();
+
+    const userMsg: Message = {
+      id: Date.now().toString(),
+      role: 'user',
+      text,
+      imageUri: imageUri ?? undefined,
+    };
+
+    // Adaugă mesaj user + mesaj AI gol (placeholder)
+    setMessages(prev => [
+      ...prev,
+      userMsg,
+      { id: aiMsgId, role: 'ai', text: '', questionText: questionSnap },
+    ]);
     setInput('');
+    setPendingImageUri(null);
+    setPendingImageBase64(null);
     setLoading(true);
     scrollToBottom();
 
-    try {
-      const aiText = await askMester(text, categoryLabel, conversationHistory);
+    if (imageBase64) setPhotoCount(prev => prev + 1);
 
-      const aiMsg: Message = { id: (Date.now() + 1).toString(), role: 'ai', text: aiText };
-      setMessages(prev => [...prev, aiMsg]);
+    try {
+      const aiText = await askMester(
+        text || 'Analizează imaginea și identifică problema.',
+        categoryLabel,
+        conversationHistory,
+        imageBase64 ?? undefined
+      );
+
+      // Pornește efectul de typewriter; dezactivează loading când termină
+      typeMessage(aiText, () => {
+        setLoading(false);
+      });
 
       const updatedHistory: ChatMessage[] = [
         ...conversationHistory,
-        { role: 'user', text },
+        { role: 'user', text: text || '[imagine trimisă]' },
         { role: 'model', text: aiText },
       ];
       setConversationHistory(updatedHistory);
-      scrollToBottom();
 
-      // Salvare Firestore la primul schimb complet
       if (!saved && user) {
         setSaved(true);
         saveProblem(user.uid, {
           category: categoryId,
-          description: text,
+          description: text || '[diagnostic foto]',
           aiResponse: aiText,
           resolved: false,
         }).catch(() => {});
@@ -162,18 +306,16 @@ export default function DiagnosticScreen() {
     } catch (error: unknown) {
       const errText = error instanceof Error ? error.message : String(error);
       console.error('DiagnosticScreen error:', errText);
-      setMessages(prev => [
-        ...prev,
-        { id: (Date.now() + 1).toString(), role: 'ai', text: `Eroare: ${errText}` },
-      ]);
-    } finally {
+      updateLastAiMessage(`Eroare: ${errText}`);
       setLoading(false);
     }
   };
 
+  const canSend = (!!input.trim() || !!pendingImageUri) && !loading;
+
   return (
     <View style={[styles.root, { backgroundColor: colors.bgPage }]}>
-      {/* Header — in afara KeyboardAvoidingView ca sa nu se miste */}
+      {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bgApp, borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
         <TouchableOpacity onPress={() => navigation.goBack()} style={styles.backBtn}>
           <Ionicons name="arrow-back" size={22} color={colors.textPrimary} />
@@ -198,11 +340,17 @@ export default function DiagnosticScreen() {
         >
           {messages.map(msg =>
             msg.role === 'user'
-              ? <UserBubble key={msg.id} text={msg.text} colors={colors} />
-              : <AIBubble key={msg.id} text={msg.text} colors={colors} />
+              ? <UserBubble key={msg.id} text={msg.text} imageUri={msg.imageUri} colors={colors} />
+              : <AIMessage
+                  key={msg.id}
+                  message={msg.text}
+                  question={msg.questionText}
+                  categoryId={categoryId}
+                />
           )}
 
-          {loading && (
+          {/* Spinner cât timp răspunsul nu a sosit încă */}
+          {loading && messages[messages.length - 1]?.text === '' && (
             <View style={bubbleStyles.aiWrapper}>
               <Image source={require('../assets/logo.png')} style={bubbleStyles.avatar} resizeMode="contain" />
               <View style={[bubbleStyles.aiBubble, { backgroundColor: colors.bgCard }]}>
@@ -212,8 +360,25 @@ export default function DiagnosticScreen() {
           )}
         </ScrollView>
 
-        {/* Input */}
+        {/* Image preview strip */}
+        {pendingImageUri && (
+          <View style={[styles.previewStrip, { backgroundColor: colors.bgApp, borderTopColor: colors.border }]}>
+            <View style={styles.previewWrapper}>
+              <Image source={{ uri: pendingImageUri }} style={styles.previewThumb} resizeMode="cover" />
+              <TouchableOpacity style={styles.previewRemove} onPress={removePendingImage}>
+                <Ionicons name="close-circle" size={20} color="#fff" />
+              </TouchableOpacity>
+            </View>
+          </View>
+        )}
+
+        {/* Input bar */}
         <View style={[styles.inputBar, { backgroundColor: colors.bgApp, borderTopColor: colors.border, paddingBottom: insets.bottom || 12 }]}>
+          {/* Mic — PRO */}
+          <TouchableOpacity style={styles.iconBtn} onPress={handleMic}>
+            <Ionicons name="mic-outline" size={22} color={colors.textSecondary} />
+          </TouchableOpacity>
+
           <TextInput
             style={[styles.input, { backgroundColor: colors.bgCard, borderColor: colors.border, color: colors.textPrimary }]}
             placeholder="Descrie problema..."
@@ -224,10 +389,21 @@ export default function DiagnosticScreen() {
             maxLength={500}
             onSubmitEditing={handleSend}
           />
+
+          {/* Camera */}
+          <TouchableOpacity style={styles.iconBtn} onPress={handlePickPhoto}>
+            <Ionicons
+              name="camera-outline"
+              size={22}
+              color={photoCount >= FREE_PHOTO_LIMIT ? colors.textSecondary : brand.orange}
+            />
+          </TouchableOpacity>
+
+          {/* Send */}
           <TouchableOpacity
-            style={[styles.sendBtn, (!input.trim() || loading) && { opacity: 0.4 }]}
+            style={[styles.sendBtn, !canSend && { opacity: 0.4 }]}
             onPress={handleSend}
-            disabled={!input.trim() || loading}
+            disabled={!canSend}
           >
             <Ionicons name="send" size={18} color="#fff" />
           </TouchableOpacity>
@@ -257,13 +433,35 @@ const styles = StyleSheet.create({
   messageList: { flex: 1 },
   messageContent: { paddingTop: 16 },
 
+  previewStrip: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+  },
+  previewWrapper: { position: 'relative', alignSelf: 'flex-start' },
+  previewThumb: { width: 72, height: 72, borderRadius: 10 },
+  previewRemove: {
+    position: 'absolute',
+    top: -6,
+    right: -6,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    borderRadius: 10,
+  },
+
   inputBar: {
     flexDirection: 'row',
     alignItems: 'flex-end',
-    paddingHorizontal: 12,
+    paddingHorizontal: 8,
     paddingTop: 10,
     borderTopWidth: 1,
-    gap: 8,
+    gap: 6,
+  },
+  iconBtn: {
+    width: 36,
+    height: 40,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
   },
   input: {
     flex: 1,
