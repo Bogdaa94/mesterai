@@ -27,6 +27,10 @@ export type HomeStackParamList = {
   Home: undefined;
   Category: { categoryId: string };
   Diagnostic: { categoryId: string };
+};
+
+export type RootStackParamList = {
+  MainTabs: undefined;
   Paywall: undefined;
 };
 
@@ -43,9 +47,10 @@ const CONSENT_KEY = (uid: string) => `consent_given_${uid}`;
 
 // ── Navigators ───────────────────────────────────────────────────────────────
 
-const HomeStack = createStackNavigator<HomeStackParamList>();
-const Tab = createBottomTabNavigator<TabParamList>();
-const RootStack = createStackNavigator();
+const HomeStack  = createStackNavigator<HomeStackParamList>();
+const MainStack  = createStackNavigator<RootStackParamList>();
+const Tab        = createBottomTabNavigator<TabParamList>();
+const AuthStack  = createStackNavigator();
 
 function HomeStackNavigator() {
   const { colors } = useTheme();
@@ -58,10 +63,9 @@ function HomeStackNavigator() {
         cardStyle: { backgroundColor: colors.bgPage },
       }}
     >
-      <HomeStack.Screen name="Home" component={HomeScreen} options={{ headerShown: false }} />
-      <HomeStack.Screen name="Category" component={CategoryScreen} options={{ title: 'Categorie' }} />
-      <HomeStack.Screen name="Diagnostic" component={DiagnosticScreen} options={{ title: 'Diagnostic' }} />
-      <HomeStack.Screen name="Paywall" component={PaywallScreen} options={{ title: '' }} />
+      <HomeStack.Screen name="Home"       component={HomeScreen}       options={{ headerShown: false }} />
+      <HomeStack.Screen name="Category"   component={CategoryScreen}   options={{ title: 'Categorie' }} />
+      <HomeStack.Screen name="Diagnostic" component={DiagnosticScreen} options={{ headerShown: false }} />
     </HomeStack.Navigator>
   );
 }
@@ -75,7 +79,7 @@ const TAB_ICONS: Record<string, { active: IoniconsName; inactive: IoniconsName }
   'Profil': { active: 'person', inactive: 'person-outline' },
 };
 
-function MainApp() {
+function TabNavigator() {
   const { colors } = useTheme();
   return (
     <Tab.Navigator
@@ -103,38 +107,42 @@ function MainApp() {
   );
 }
 
+// MainApp = TabNavigator + Paywall ca modal deasupra tuturor tab-urilor
+function MainApp() {
+  return (
+    <MainStack.Navigator screenOptions={{ headerShown: false }}>
+      <MainStack.Screen name="MainTabs" component={TabNavigator} />
+      <MainStack.Screen
+        name="Paywall"
+        component={PaywallScreen}
+        options={{ presentation: 'modal' }}
+      />
+    </MainStack.Navigator>
+  );
+}
+
 // ── Root navigator ────────────────────────────────────────────────────────────
 
 export default function AppNavigator() {
   const { colors } = useTheme();
   const { user, loading } = useAuth();
 
-  // Un singur state atomic pentru flux — elimina problema de batching
   const [flow, setFlow] = useState<FlowState>('loading');
 
   useEffect(() => {
     if (loading) {
       setFlow('loading');
-      console.log('[Nav] flow=loading (auth loading)');
       return;
     }
-
     if (!user) {
       setFlow('auth');
-      console.log('[Nav] flow=auth (no user)');
       return;
     }
-
-    // User autentificat — verifica consimtamantul din AsyncStorage
     AsyncStorage.getItem(CONSENT_KEY(user.uid)).then((val) => {
       const hasConsent = val === 'true';
-      const nextFlow: FlowState = hasConsent ? 'main' : 'consent';
-      setFlow(nextFlow);
-      console.log(`[Nav] user=${user.uid} hasConsent=${hasConsent} → flow=${nextFlow}`);
+      setFlow(hasConsent ? 'main' : 'consent');
     });
   }, [user, loading]);
-
-  console.log(`[Nav] render: flow=${flow} user=${user?.uid ?? 'null'}`);
 
   if (flow === 'loading') {
     return (
@@ -145,38 +153,27 @@ export default function AppNavigator() {
   }
 
   if (flow === 'splash') {
-    return (
-      <SplashScreen
-        onFinish={() => {
-          console.log('[Nav] splash finished → flow=main');
-          setFlow('main');
-        }}
-      />
-    );
+    return <SplashScreen onFinish={() => setFlow('main')} />;
   }
 
   return (
     <NavigationContainer>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Navigator screenOptions={{ headerShown: false }}>
         {flow === 'auth' ? (
-          <RootStack.Screen name="Auth" component={AuthScreen} />
+          <AuthStack.Screen name="Auth" component={AuthScreen} />
         ) : flow === 'consent' ? (
-          <RootStack.Screen name="Consent">
+          <AuthStack.Screen name="Consent">
             {() => (
               <ConsentScreenWrapper
                 userId={user!.uid}
-                onConsent={() => {
-                  // Singura tranzitie atomica — fara batching issues
-                  console.log('[Nav] consent accepted → flow=splash');
-                  setFlow('splash');
-                }}
+                onConsent={() => setFlow('splash')}
               />
             )}
-          </RootStack.Screen>
+          </AuthStack.Screen>
         ) : (
-          <RootStack.Screen name="Main" component={MainApp} />
+          <AuthStack.Screen name="Main" component={MainApp} />
         )}
-      </RootStack.Navigator>
+      </AuthStack.Navigator>
     </NavigationContainer>
   );
 }

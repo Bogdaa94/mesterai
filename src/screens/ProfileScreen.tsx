@@ -12,7 +12,10 @@ import {
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { deleteUser } from 'firebase/auth';
+import { RootStackParamList } from '../navigation/AppNavigator';
 import { deleteDoc, doc } from 'firebase/firestore';
 
 import { useTheme } from '../context/ThemeContext';
@@ -138,6 +141,7 @@ const isPro = false; // TODO: conectează la subscription real
 export default function ProfileScreen() {
   const { colors, mode, toggleTheme } = useTheme();
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
   const [profile, setProfile] = useState<UserProfile | null>(null);
@@ -221,7 +225,7 @@ export default function ProfileScreen() {
     ...(!isPro ? [{
       icon: 'diamond-outline' as IoniconsName,
       label: 'Upgrade la Pro',
-      onPress: () => Alert.alert('PRO', 'Paywall disponibil în curând.'),
+      onPress: () => navigation.navigate('Paywall'),
     }] : []),
     {
       icon: mode === 'dark' ? 'moon' : 'sunny-outline',
