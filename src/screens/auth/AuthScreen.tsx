@@ -87,7 +87,7 @@ export default function AuthScreen() {
 
         {/* Titlu */}
         <Text style={s.title}>Bun venit!</Text>
-        <Text style={s.subtitle}>Rezolvăm orice problemă acasă</Text>
+        <Text style={s.subtitle}>Spui problema. Primești soluția.</Text>
 
         {/* Câmp Nume (doar register) */}
         {mode === 'register' && (

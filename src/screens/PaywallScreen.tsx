@@ -42,17 +42,17 @@ const FEATURES: Feature[] = [
 const PLANS = {
   annual: {
     label: 'Anual',
-    subtitle: '8,33 RON/lună · facturat anual',
-    price: '99,99 RON/an',
-    cta: 'Începe Pro · 99,99 RON/an',
-    discount: '-58%',
+    subtitle: '18,75 RON/lună · facturat anual',
+    price: '224,99 RON/an',
+    cta: 'Începe Pro · 224,99 RON/an',
+    discount: '-25%',
     recommended: true,
   },
   monthly: {
     label: 'Lunar',
     subtitle: 'Flexibil · anulezi oricând',
-    price: '19,99 RON/lună',
-    cta: 'Începe Pro · 19,99 RON/lună',
+    price: '24,99 RON/lună',
+    cta: 'Începe Pro · 24,99 RON/lună',
     discount: null,
     recommended: false,
   },
@@ -177,7 +177,9 @@ export default function PaywallScreen() {
 
         {/* ── Legal note ────────────────────────────────────────────────── */}
         <Text style={[styles.legal, { color: colors.textSecondary }]}>
-          Abonamentul se reînnoiește automat.{'\n'}
+          {selectedPlan === 'monthly'
+            ? 'Abonamentul lunar se reînnoiește automat la 24,99 RON/lună.'
+            : 'Abonamentul anual se reînnoiește automat la 224,99 RON/an.'}{'\n'}
           Poți anula oricând din setările{' '}
           {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}{' '}
           cu 24h înainte de reînnoire.
