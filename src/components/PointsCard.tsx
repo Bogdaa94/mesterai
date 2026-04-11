@@ -21,15 +21,11 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 const MAX_POINTS = 400;
 
 const HOW_TO_EARN = [
-  { action: '✍️', label: 'Postare nouă în forum',            points: '+5 pts' },
-  { action: '💬', label: 'Comentariu primit pe postarea ta', points: '+2 pts' },
-  { action: '👍', label: 'Vot pozitiv primit',               points: '+1 pt'  },
-  { action: '✅', label: 'Soluție validată de comunitate',   points: '+10 pts' },
+  { action: '👍', label: 'Vot pozitiv primit pe postare/comentariu', points: '+1 pt'   },
+  { action: '✅', label: 'Soluție validată de comunitate (3+ voturi)', points: '+10 pts' },
 ];
 
 const ACTION_ICONS: Record<string, string> = {
-  post:     '✍️',
-  comment:  '💬',
   vote:     '👍',
   solution: '✅',
 };

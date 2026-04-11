@@ -89,9 +89,7 @@ export async function markResolved(postId: string): Promise<void> {
 
 // ─── Points ───────────────────────────────────────────────────────────────────
 
-const POINTS_MAP: Record<'post' | 'comment' | 'vote' | 'solution', number> = {
-  post:     5,
-  comment:  2,
+const POINTS_MAP: Record<'vote' | 'solution', number> = {
   vote:     1,
   solution: 10,
 };
@@ -100,7 +98,7 @@ const MAX_HISTORY = 50;
 
 export async function awardPoints(
   userId: string,
-  action: 'post' | 'comment' | 'vote' | 'solution',
+  action: 'vote' | 'solution',
   description: string
 ): Promise<void> {
   const points = POINTS_MAP[action];

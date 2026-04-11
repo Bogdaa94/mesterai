@@ -16,7 +16,7 @@ import { db } from './config';
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface PointsTransaction {
-  action: 'post' | 'comment' | 'vote' | 'solution';
+  action: 'vote' | 'solution';
   points: number;
   description: string;
   createdAt: Timestamp;
