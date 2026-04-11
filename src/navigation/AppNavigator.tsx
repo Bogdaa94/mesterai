@@ -17,8 +17,9 @@ import HomeScreen from '../screens/HomeScreen';
 import CategoryScreen from '../screens/CategoryScreen';
 import DiagnosticScreen from '../screens/DiagnosticScreen';
 import PaywallScreen from '../screens/PaywallScreen';
-import SearchScreen from '../screens/SearchScreen';
 import ForumScreen from '../screens/ForumScreen';
+import PostDetailScreen from '../screens/forum/PostDetailScreen';
+import NewPostScreen from '../screens/forum/NewPostScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MesteriScreen from '../screens/MesteriScreen';
@@ -32,10 +33,16 @@ export type HomeStackParamList = {
   Diagnostic: { categoryId: string };
 };
 
+export type ForumStackParamList = {
+  ForumMain: undefined;
+  PostDetail: { postId: string };
+};
+
 export type RootStackParamList = {
   MainTabs: undefined;
   Paywall: undefined;
   FiiMester: undefined;
+  NewPost: undefined;
 };
 
 export type TabParamList = {
@@ -53,6 +60,7 @@ const CONSENT_KEY = (uid: string) => `consent_given_${uid}`;
 // ── Navigators ───────────────────────────────────────────────────────────────
 
 const HomeStack  = createStackNavigator<HomeStackParamList>();
+const ForumStack = createStackNavigator<ForumStackParamList>();
 const MainStack  = createStackNavigator<RootStackParamList>();
 const Tab        = createBottomTabNavigator<TabParamList>();
 const AuthStack  = createStackNavigator();
@@ -75,14 +83,23 @@ function HomeStackNavigator() {
   );
 }
 
+function ForumStackNavigator() {
+  return (
+    <ForumStack.Navigator screenOptions={{ headerShown: false }}>
+      <ForumStack.Screen name="ForumMain"  component={ForumScreen} />
+      <ForumStack.Screen name="PostDetail" component={PostDetailScreen} />
+    </ForumStack.Navigator>
+  );
+}
+
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TAB_ICONS: Record<string, { active: IoniconsName; inactive: IoniconsName }> = {
-  'Acasă':   { active: 'home',              inactive: 'home-outline'              },
-  'Forum':   { active: 'chatbubbles',       inactive: 'chatbubbles-outline'       },
-  'Meșteri': { active: 'construct',         inactive: 'construct-outline'         },
-  'Istoric': { active: 'list',              inactive: 'list-outline'              },
-  'Profil':  { active: 'person',            inactive: 'person-outline'            },
+  'Acasă':   { active: 'home',        inactive: 'home-outline'        },
+  'Forum':   { active: 'chatbubbles', inactive: 'chatbubbles-outline' },
+  'Meșteri': { active: 'construct',   inactive: 'construct-outline'   },
+  'Istoric': { active: 'list',        inactive: 'list-outline'        },
+  'Profil':  { active: 'person',      inactive: 'person-outline'      },
 };
 
 function TabNavigator() {
@@ -106,7 +123,7 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Acasă"   component={HomeStackNavigator} />
-      <Tab.Screen name="Forum"   component={ForumScreen} />
+      <Tab.Screen name="Forum"   component={ForumStackNavigator} />
       <Tab.Screen name="Meșteri" component={MesteriScreen} />
       <Tab.Screen name="Istoric" component={HistoryScreen} />
       <Tab.Screen name="Profil"  component={ProfileScreen} />
@@ -114,7 +131,6 @@ function TabNavigator() {
   );
 }
 
-// MainApp = TabNavigator + Paywall ca modal deasupra tuturor tab-urilor
 function MainApp() {
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
@@ -127,7 +143,12 @@ function MainApp() {
       <MainStack.Screen
         name="FiiMester"
         component={FiiMesterScreen}
-        options={{ presentation: 'modal', headerShown: false }}
+        options={{ presentation: 'modal' }}
+      />
+      <MainStack.Screen
+        name="NewPost"
+        component={NewPostScreen}
+        options={{ presentation: 'modal' }}
       />
     </MainStack.Navigator>
   );
