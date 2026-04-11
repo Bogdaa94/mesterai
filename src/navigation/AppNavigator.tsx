@@ -18,6 +18,7 @@ import CategoryScreen from '../screens/CategoryScreen';
 import DiagnosticScreen from '../screens/DiagnosticScreen';
 import PaywallScreen from '../screens/PaywallScreen';
 import SearchScreen from '../screens/SearchScreen';
+import ForumScreen from '../screens/ForumScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MesteriScreen from '../screens/MesteriScreen';
@@ -39,7 +40,7 @@ export type RootStackParamList = {
 
 export type TabParamList = {
   Acasă: undefined;
-  Caută: undefined;
+  Forum: undefined;
   Meșteri: undefined;
   Istoric: undefined;
   Profil: undefined;
@@ -77,11 +78,11 @@ function HomeStackNavigator() {
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TAB_ICONS: Record<string, { active: IoniconsName; inactive: IoniconsName }> = {
-  'Acasă':   { active: 'home',       inactive: 'home-outline'       },
-  'Caută':   { active: 'search',     inactive: 'search-outline'     },
-  'Meșteri': { active: 'construct',  inactive: 'construct-outline'  },
-  'Istoric': { active: 'list',       inactive: 'list-outline'       },
-  'Profil':  { active: 'person',     inactive: 'person-outline'     },
+  'Acasă':   { active: 'home',              inactive: 'home-outline'              },
+  'Forum':   { active: 'chatbubbles',       inactive: 'chatbubbles-outline'       },
+  'Meșteri': { active: 'construct',         inactive: 'construct-outline'         },
+  'Istoric': { active: 'list',              inactive: 'list-outline'              },
+  'Profil':  { active: 'person',            inactive: 'person-outline'            },
 };
 
 function TabNavigator() {
@@ -105,7 +106,7 @@ function TabNavigator() {
       })}
     >
       <Tab.Screen name="Acasă"   component={HomeStackNavigator} />
-      <Tab.Screen name="Caută"   component={SearchScreen} />
+      <Tab.Screen name="Forum"   component={ForumScreen} />
       <Tab.Screen name="Meșteri" component={MesteriScreen} />
       <Tab.Screen name="Istoric" component={HistoryScreen} />
       <Tab.Screen name="Profil"  component={ProfileScreen} />
