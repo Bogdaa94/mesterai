@@ -11,23 +11,23 @@ import {
   signInWithCredential,
 } from 'firebase/auth';
 import { Alert } from 'react-native';
-import { GoogleSignin, statusCodes } from '@react-native-google-signin/google-signin';
+
+// TODO: înlocuiește cu @react-native-google-signin/google-signin în producție
+import * as Google from 'expo-auth-session/providers/google';
+import * as WebBrowser from 'expo-web-browser';
+
 import { auth } from '../firebase/config';
 import { createUserProfile, deleteUserData, getUserProfile, updateLastActive } from '../firebase/firestore';
 
-// ── Configurare Google Sign-In ────────────────────────────────────────────────
-
-GoogleSignin.configure({
-  webClientId: '14861675685-9rjgp8ukmg8ll0offp1mf7ej1mbe8udo.apps.googleusercontent.com',
-  iosClientId: '14861675685-sjjrialrr49f37rdm4b8kjo3ttns1cla.apps.googleusercontent.com',
-  offlineAccess: true,
-});
+// Necesar pentru expo-auth-session pe iOS
+WebBrowser.maybeCompleteAuthSession();
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 interface AuthContextValue {
   user: User | null;
   loading: boolean;
+  googleRequestReady: boolean;
   signInWithEmail: (email: string, password: string) => Promise<void>;
   signUpWithEmail: (name: string, email: string, password: string) => Promise<void>;
   signInWithGoogle: () => Promise<void>;
@@ -45,18 +45,49 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
 
+  // ── Google Auth Request (expo-auth-session) ─────────────────────────────────
+  const [request, response, promptAsync] = Google.useAuthRequest({
+    iosClientId: '14861675685-sjjrialrr49f37rdm4b8kjo3ttns1cla.apps.googleusercontent.com',
+    webClientId: '14861675685-9rjgp8ukmg8ll0offp1mf7ej1mbe8udo.apps.googleusercontent.com',
+  });
+
+  // Procesează răspunsul Google după redirect
   useEffect(() => {
-    const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
+    if (response?.type !== 'success') return;
+
+    const { id_token } = response.params;
+    if (!id_token) return;
+
+    const credential = GoogleAuthProvider.credential(id_token);
+    signInWithCredential(auth, credential)
+      .then(async (result) => {
+        const existing = await getUserProfile(result.user.uid);
+        if (!existing) {
+          await createUserProfile(
+            result.user.uid,
+            result.user.displayName ?? 'Utilizator',
+            result.user.email ?? '',
+            'google'
+          );
+        }
+      })
+      .catch((err) => {
+        console.error('Google credential error:', err);
+        Alert.alert('Eroare', 'Autentificarea Google a eșuat. Încearcă din nou.');
+      });
+  }, [response]);
+
+  // ── Auth state listener ─────────────────────────────────────────────────────
+  useEffect(() => {
+    const unsubscribe = onAuthStateChanged(auth, (firebaseUser) => {
       setUser(firebaseUser);
-      if (firebaseUser) {
-        updateLastActive(firebaseUser.uid);
-      }
+      if (firebaseUser) updateLastActive(firebaseUser.uid);
       setLoading(false);
     });
     return unsubscribe;
   }, []);
 
-  // ── Email/Parolă ────────────────────────────────────────────────────────────
+  // ── Email / Parolă ──────────────────────────────────────────────────────────
 
   const signInWithEmail = async (email: string, password: string) => {
     await signInWithEmailAndPassword(auth, email, password);
@@ -71,45 +102,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   // ── Google Sign-In ──────────────────────────────────────────────────────────
 
   const signInWithGoogle = async () => {
-    try {
-      await GoogleSignin.hasPlayServices();
-      const signInResult = await GoogleSignin.signIn();
-      const { idToken } = await GoogleSignin.getTokens();
-
-      if (!idToken) throw new Error('Nu s-a obținut token Google.');
-
-      const credential = GoogleAuthProvider.credential(idToken);
-      const result = await signInWithCredential(auth, credential);
-
-      // Creează profilul Firestore dacă e user nou
-      const existing = await getUserProfile(result.user.uid);
-      if (!existing) {
-        await createUserProfile(
-          result.user.uid,
-          result.user.displayName ?? 'Utilizator',
-          result.user.email ?? '',
-          'google'
-        );
-      }
-    } catch (error: any) {
-      if (error.code === statusCodes.SIGN_IN_CANCELLED) return;
-      if (error.code === statusCodes.IN_PROGRESS) return;
-      if (error.code === statusCodes.PLAY_SERVICES_NOT_AVAILABLE) {
-        Alert.alert('Eroare', 'Google Play Services nu este disponibil.');
-        return;
-      }
-      console.error('Google Sign-In error:', error);
-      Alert.alert('Eroare Google', error.message || 'Autentificarea Google a eșuat.');
-      throw error;
-    }
+    await promptAsync();
   };
 
   // ── Sign Out ────────────────────────────────────────────────────────────────
 
   const signOut = async () => {
-    try {
-      await GoogleSignin.signOut().catch(() => {}); // ignoră dacă nu e sesiune Google
-    } catch {}
     await firebaseSignOut(auth);
   };
 
@@ -121,11 +119,10 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await deleteUserData(auth.currentUser.uid);
       await deleteUser(auth.currentUser);
     } catch (error: any) {
-      // Firebase necesită re-autentificare recentă
       if (error.code === 'auth/requires-recent-login') {
         Alert.alert(
           'Autentificare necesară',
-          'Te rog deconectează-te și reconectează-te, apoi încearcă din nou ștergerea contului.'
+          'Deconectează-te și reconectează-te, apoi încearcă din nou.'
         );
       } else {
         throw error;
@@ -136,6 +133,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   return (
     <AuthContext.Provider value={{
       user, loading,
+      googleRequestReady: !!request,
       signInWithEmail, signUpWithEmail,
       signInWithGoogle,
       signOut, deleteAccount,

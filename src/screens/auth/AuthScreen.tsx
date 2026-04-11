@@ -27,7 +27,7 @@ function GoogleLogo() {
 
 export default function AuthScreen() {
   const { colors } = useTheme();
-  const { signInWithEmail, signUpWithEmail, signInWithGoogle } = useAuth();
+  const { signInWithEmail, signUpWithEmail, signInWithGoogle, googleRequestReady } = useAuth();
 
   const [mode, setMode] = useState<'login' | 'register'>('login');
   const [name, setName] = useState('');
@@ -143,7 +143,7 @@ export default function AuthScreen() {
         </View>
 
         {/* Google */}
-        <TouchableOpacity style={s.btnGoogle} onPress={handleGoogle} disabled={busy}>
+        <TouchableOpacity style={s.btnGoogle} onPress={handleGoogle} disabled={busy || !googleRequestReady}>
           <GoogleLogo />
           <Text style={s.btnGoogleText}>Continuă cu Google</Text>
         </TouchableOpacity>
