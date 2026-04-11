@@ -9,6 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { brand } from '../theme/colors';
+import { useActivityTracker } from '../hooks/useActivityTracker';
 
 import AuthScreen from '../screens/auth/AuthScreen';
 import ConsentScreen from '../screens/auth/ConsentScreen';
@@ -159,6 +160,7 @@ function MainApp() {
 export default function AppNavigator() {
   const { colors } = useTheme();
   const { user, loading } = useAuth();
+  const ping = useActivityTracker(user?.uid);
 
   const [flow, setFlow] = useState<FlowState>('loading');
 
@@ -190,7 +192,7 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer>
+    <NavigationContainer onStateChange={ping}>
       <AuthStack.Navigator screenOptions={{ headerShown: false }}>
         {flow === 'auth' ? (
           <AuthStack.Screen name="Auth" component={AuthScreen} />

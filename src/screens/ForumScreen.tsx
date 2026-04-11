@@ -18,6 +18,7 @@ import { CompositeNavigationProp } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { usePro } from '../context/ProContext';
 import { brand } from '../theme/colors';
 import { getForumPosts, Post, ForumFilter } from '../utils/forumHelpers';
@@ -25,6 +26,7 @@ import { ForumStackParamList, RootStackParamList } from '../navigation/AppNaviga
 import { db } from '../firebase/config';
 import PostCard from '../components/forum/PostCard';
 import ForumTeaser from '../components/forum/ForumTeaser';
+import { useActivityTracker } from '../hooks/useActivityTracker';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -89,9 +91,11 @@ const sbStyles = StyleSheet.create({
 
 export default function ForumScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
   const { isPro } = usePro();
   const navigation = useNavigation<ForumNavProp>();
   const insets = useSafeAreaInsets();
+  const ping = useActivityTracker(user?.uid);
 
   // All hooks must be declared before any conditional return
   const [posts, setPosts] = useState<Post[]>([]);
@@ -144,10 +148,12 @@ export default function ForumScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handlePostPress = (post: Post) => {
+    ping();
     navigation.navigate('PostDetail', { postId: post.id });
   };
 
   const handleNewPost = () => {
+    ping();
     navigation.navigate('NewPost');
   };
 

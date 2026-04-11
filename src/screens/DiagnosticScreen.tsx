@@ -26,6 +26,7 @@ import { askMester, ChatMessage } from '../services/gemini';
 import { saveProblem } from '../firebase/firestore';
 import { HomeStackParamList, RootStackParamList } from '../navigation/AppNavigator';
 import AIMessage from '../components/AIMessage';
+import { useActivityTracker } from '../hooks/useActivityTracker';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
 
@@ -106,6 +107,7 @@ export default function DiagnosticScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { isPro, dailyCount, freeLimit, hasReachedLimit, increment } = usePro();
+  const ping = useActivityTracker(user?.uid);
   const navigation = useNavigation<DiagNav>();
   const route = useRoute<DiagRoute>();
   const insets = useSafeAreaInsets();
@@ -249,6 +251,7 @@ export default function DiagnosticScreen() {
   const handleSend = async () => {
     const text = input.trim();
     if ((!text && !pendingImageUri) || loading) return;
+    ping();
 
     // Verifică limita zilnică pentru Free users
     if (hasReachedLimit) {

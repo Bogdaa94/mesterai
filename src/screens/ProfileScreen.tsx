@@ -19,7 +19,10 @@ import { RootStackParamList } from '../navigation/AppNavigator';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { brand } from '../theme/colors';
-import { getUserProfile, getUserProblems, UserProfile } from '../firebase/firestore';
+import { doc, onSnapshot } from 'firebase/firestore';
+import { db } from '../firebase/config';
+import { getUserProblems, UserProfile } from '../firebase/firestore';
+import { timeAgo } from '../utils/timeAgo';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -146,25 +149,31 @@ export default function ProfileScreen() {
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
 
-  // ── Încarcă date Firestore ─────────────────────────────────────────────────
+  // ── Profil — onSnapshot (timp real) ───────────────────────────────────────
 
-  const loadData = useCallback(async () => {
+  useEffect(() => {
+    if (!user) return;
+    const userRef = doc(db, 'users', user.uid);
+    const unsub = onSnapshot(userRef, (snap) => {
+      if (snap.exists()) setProfile(snap.data() as UserProfile);
+      setLoadingProfile(false);
+    }, () => setLoadingProfile(false));
+    return unsub;
+  }, [user]);
+
+  // ── Număr probleme ────────────────────────────────────────────────────────
+
+  const loadProblems = useCallback(async () => {
     if (!user) return;
     try {
-      const [prof, problems] = await Promise.all([
-        getUserProfile(user.uid),
-        getUserProblems(user.uid),
-      ]);
-      setProfile(prof);
+      const problems = await getUserProblems(user.uid);
       setProblemCount(problems.length);
     } catch {
       // silently ignore
-    } finally {
-      setLoadingProfile(false);
     }
   }, [user]);
 
-  useEffect(() => { loadData(); }, [loadData]);
+  useEffect(() => { loadProblems(); }, [loadProblems]);
 
   // ── Avatar ────────────────────────────────────────────────────────────────
 
@@ -306,6 +315,11 @@ export default function ProfileScreen() {
           <>
             <Text style={[styles.name, { color: colors.textPrimary }]}>{displayName}</Text>
             <Text style={[styles.email, { color: colors.textSecondary }]}>{email}</Text>
+            {profile?.lastActiveAt && (
+              <Text style={[styles.lastActive, { color: colors.textSecondary }]}>
+                Activ {timeAgo(profile.lastActiveAt)}
+              </Text>
+            )}
           </>
         )}
 
@@ -365,7 +379,13 @@ const styles = StyleSheet.create({
   email: {
     fontSize: 13,
     fontFamily: 'DMSans_400Regular',
+    marginBottom: 4,
+  },
+  lastActive: {
+    fontSize: 11,
+    fontFamily: 'DMSans_400Regular',
     marginBottom: 10,
+    opacity: 0.7,
   },
   badge: {
     paddingHorizontal: 12,
