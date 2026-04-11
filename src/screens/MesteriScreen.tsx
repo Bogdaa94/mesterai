@@ -7,11 +7,14 @@ import {
   Linking,
   StyleSheet,
   Alert,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
+import * as Location from 'expo-location';
+import { getDistance } from 'geolib';
 
 import { useTheme } from '../context/ThemeContext';
 import { usePro } from '../context/ProContext';
@@ -27,7 +30,9 @@ interface Mester {
   name: string;
   category: CategoryKey;
   categoryLabel: string;
-  distanceKm: number;
+  distanceKm: number; // distanță mock (fallback când locația nu e activă)
+  lat: number;
+  lng: number;
   rating: number;
   reviewCount: number;
   whatsapp: string;
@@ -37,13 +42,14 @@ type RadiusOption = 5 | 10 | 25 | 50;
 
 // ── Mock data ──────────────────────────────────────────────────────────────────
 
+// Coordonate simulate în jurul centrului București (44.4268, 26.1025)
 const MESTERI_MOCK: Mester[] = [
-  { id: '1', name: 'Ion Popescu',    category: 'sanitare',    categoryLabel: 'Sanitare',    distanceKm: 3.2,  rating: 4.8, reviewCount: 47, whatsapp: '40712345678' },
-  { id: '2', name: 'Mihai Ionescu',  category: 'electric',    categoryLabel: 'Electric',    distanceKm: 5.7,  rating: 4.6, reviewCount: 31, whatsapp: '40723456789' },
-  { id: '3', name: 'Gheorghe Radu',  category: 'constructii', categoryLabel: 'Construcții', distanceKm: 8.1,  rating: 4.9, reviewCount: 89, whatsapp: '40734567890' },
-  { id: '4', name: 'Alexandru Stan', category: 'electric',    categoryLabel: 'Electric',    distanceKm: 12.4, rating: 4.5, reviewCount: 22, whatsapp: '40745678901' },
-  { id: '5', name: 'Vasile Dumitru', category: 'gradina',     categoryLabel: 'Grădină',     distanceKm: 15.8, rating: 4.7, reviewCount: 15, whatsapp: '40756789012' },
-  { id: '6', name: 'Costin Marin',   category: 'mobila',      categoryLabel: 'Mobilă',      distanceKm: 22.3, rating: 4.4, reviewCount: 38, whatsapp: '40767890123' },
+  { id: '1', name: 'Ion Popescu',    category: 'sanitare',    categoryLabel: 'Sanitare',    distanceKm: 3.2,  lat: 44.4540, lng: 26.0870, rating: 4.8, reviewCount: 47, whatsapp: '40712345678' },
+  { id: '2', name: 'Mihai Ionescu',  category: 'electric',    categoryLabel: 'Electric',    distanceKm: 5.7,  lat: 44.4020, lng: 26.1500, rating: 4.6, reviewCount: 31, whatsapp: '40723456789' },
+  { id: '3', name: 'Gheorghe Radu',  category: 'constructii', categoryLabel: 'Construcții', distanceKm: 8.1,  lat: 44.4800, lng: 26.0400, rating: 4.9, reviewCount: 89, whatsapp: '40734567890' },
+  { id: '4', name: 'Alexandru Stan', category: 'electric',    categoryLabel: 'Electric',    distanceKm: 12.4, lat: 44.3900, lng: 26.2100, rating: 4.5, reviewCount: 22, whatsapp: '40745678901' },
+  { id: '5', name: 'Vasile Dumitru', category: 'gradina',     categoryLabel: 'Grădină',     distanceKm: 15.8, lat: 44.5200, lng: 26.0200, rating: 4.7, reviewCount: 15, whatsapp: '40756789012' },
+  { id: '6', name: 'Costin Marin',   category: 'mobila',      categoryLabel: 'Mobilă',      distanceKm: 22.3, lat: 44.3500, lng: 25.9500, rating: 4.4, reviewCount: 38, whatsapp: '40767890123' },
 ];
 
 const RADIUS_OPTIONS: RadiusOption[] = [5, 10, 25, 50];
@@ -80,8 +86,49 @@ export default function MesteriScreen() {
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
   const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(10);
+  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [locationLoading, setLocationLoading] = useState(false);
+  const locationActive = userCoords !== null;
 
-  const filtered = MESTERI_MOCK.filter(m => m.distanceKm <= selectedRadius);
+  // Calculează distanța reală (geolib) sau foloseşte mock-ul
+  const mesteriWithDistance = MESTERI_MOCK.map(m => {
+    if (!userCoords) return { ...m, computedKm: m.distanceKm };
+    const meters = getDistance(
+      { latitude: userCoords.latitude, longitude: userCoords.longitude },
+      { latitude: m.lat, longitude: m.lng }
+    );
+    return { ...m, computedKm: Math.round(meters / 100) / 10 }; // rotunjit la 0.1 km
+  });
+
+  const filtered = mesteriWithDistance
+    .filter(m => m.computedKm <= selectedRadius)
+    .sort((a, b) => a.computedKm - b.computedKm);
+
+  const handleLocationPress = async () => {
+    if (locationActive) {
+      // Dezactivează locația
+      setUserCoords(null);
+      return;
+    }
+    setLocationLoading(true);
+    try {
+      const { status } = await Location.requestForegroundPermissionsAsync();
+      if (status !== 'granted') {
+        Alert.alert(
+          'Locație dezactivată',
+          'Activează locația pentru a vedea meșterii din zona ta.',
+          [{ text: 'OK' }]
+        );
+        return;
+      }
+      const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
+      setUserCoords({ latitude: loc.coords.latitude, longitude: loc.coords.longitude });
+    } catch {
+      Alert.alert('Eroare', 'Nu am putut obține locația. Încearcă din nou.');
+    } finally {
+      setLocationLoading(false);
+    }
+  };
 
   const handleWhatsApp = (mester: Mester) => {
     if (!isPro) {
@@ -107,7 +154,17 @@ export default function MesteriScreen() {
       {/* Header */}
       <View style={[styles.header, { backgroundColor: colors.bgApp, borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Meșteri din zonă</Text>
-        <Ionicons name="location-outline" size={20} color={brand.orange} />
+        <TouchableOpacity onPress={handleLocationPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+          {locationLoading ? (
+            <ActivityIndicator size="small" color={brand.orange} />
+          ) : (
+            <Ionicons
+              name={locationActive ? 'location' : 'location-outline'}
+              size={22}
+              color={locationActive ? brand.orange : colors.textSecondary}
+            />
+          )}
+        </TouchableOpacity>
       </View>
 
       <ScrollView
@@ -144,6 +201,7 @@ export default function MesteriScreen() {
         {/* Lista meșteri */}
         <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginHorizontal: 16 }]}>
           {filtered.length} meșteri găsiți în raza de {selectedRadius} km
+          {locationActive ? ' · locație reală 📡' : ' · distanțe aproximative'}
         </Text>
 
         {filtered.length === 0 ? (
@@ -157,6 +215,7 @@ export default function MesteriScreen() {
           filtered.map(mester => {
             const catColors = categories[mester.category];
             const initial = mester.name.charAt(0).toUpperCase();
+            const displayKm = (mester as typeof mester & { computedKm: number }).computedKm;
 
             return (
               <View key={mester.id} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
@@ -174,7 +233,7 @@ export default function MesteriScreen() {
                         </Text>
                       </View>
                       <Text style={[styles.distance, { color: colors.textSecondary }]}>
-                        📍 ~{mester.distanceKm} km
+                        📍 ~{displayKm} km{locationActive ? ' 📡' : ''}
                       </Text>
                     </View>
                     <View style={styles.ratingRow}>

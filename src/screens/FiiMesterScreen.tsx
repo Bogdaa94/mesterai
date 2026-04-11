@@ -14,6 +14,9 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
 
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
+
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { brand } from '../theme/colors';
@@ -29,6 +32,7 @@ type Categorie = typeof CATEGORII[number];
 export default function FiiMesterScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const navigation = useNavigation();
   const insets = useSafeAreaInsets();
 
   const [nume, setNume] = useState('');
@@ -77,6 +81,13 @@ export default function FiiMesterScreen() {
   if (submitted) {
     return (
       <View style={[styles.successRoot, { backgroundColor: colors.bgPage }]}>
+        <TouchableOpacity
+          style={[styles.closeBtn, { top: insets.top + 12 }]}
+          onPress={() => navigation.goBack()}
+          hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        >
+          <Ionicons name="close" size={22} color={colors.textSecondary} />
+        </TouchableOpacity>
         <Text style={styles.successEmoji}>✅</Text>
         <Text style={[styles.successTitle, { color: colors.textPrimary }]}>
           Cerere trimisă!
@@ -91,12 +102,20 @@ export default function FiiMesterScreen() {
 
   return (
     <KeyboardAvoidingView
-      style={{ flex: 1 }}
+      style={{ flex: 1, backgroundColor: colors.bgPage }}
       behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
     >
+      {/* Buton X */}
+      <TouchableOpacity
+        style={[styles.closeBtn, { top: insets.top + 12 }]}
+        onPress={() => navigation.goBack()}
+        hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+      >
+        <Ionicons name="close" size={22} color={colors.textSecondary} />
+      </TouchableOpacity>
       <ScrollView
         style={[styles.root, { backgroundColor: colors.bgPage }]}
-        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 16, paddingBottom: insets.bottom + 32 }]}
+        contentContainerStyle={[styles.scroll, { paddingTop: insets.top + 52, paddingBottom: insets.bottom + 32 }]}
         showsVerticalScrollIndicator={false}
         keyboardShouldPersistTaps="handled"
       >
@@ -291,6 +310,17 @@ const styles = StyleSheet.create({
     fontSize: 11,
     textAlign: 'center',
     lineHeight: 16,
+  },
+
+  // Close button
+  closeBtn: {
+    position: 'absolute',
+    right: 16,
+    zIndex: 10,
+    width: 32,
+    height: 32,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
 
   // Success state
