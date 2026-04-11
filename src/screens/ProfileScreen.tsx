@@ -23,6 +23,8 @@ import { doc, onSnapshot } from 'firebase/firestore';
 import { db } from '../firebase/config';
 import { getUserProblems, UserProfile } from '../firebase/firestore';
 import { timeAgo } from '../utils/timeAgo';
+import { usePro } from '../context/ProContext';
+import PointsCard from '../components/PointsCard';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -136,11 +138,10 @@ const sectionStyles = StyleSheet.create({
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 
-const isPro = false; // TODO: conectează la subscription real
-
 export default function ProfileScreen() {
   const { colors, mode, toggleTheme } = useTheme();
   const { user, signOut, deleteAccount } = useAuth();
+  const { isPro } = usePro();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -331,6 +332,14 @@ export default function ProfileScreen() {
       {/* ── Secțiunea Cont ─────────────────────────────────────────────── */}
       <SectionTitle title="Cont" colors={colors} />
       <Card items={contRows} colors={colors} />
+
+      {/* ── Secțiunea Puncte ───────────────────────────────────────────── */}
+      <SectionTitle title="Punctele mele" colors={colors} />
+      <PointsCard
+        points={profile?.points ?? 0}
+        pointsHistory={profile?.pointsHistory ?? []}
+        isPro={isPro}
+      />
 
       {/* ── Secțiunea Meșteri ──────────────────────────────────────────── */}
       <SectionTitle title="Meșteri" colors={colors} />

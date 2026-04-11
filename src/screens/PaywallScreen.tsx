@@ -163,6 +163,18 @@ export default function PaywallScreen() {
           <Text style={styles.ctaText}>{activePlan.cta}</Text>
         </TouchableOpacity>
 
+        {/* ── Discount note ─────────────────────────────────────────────── */}
+        <View style={[styles.discountNote, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+          <Text style={[styles.discountNoteTitle, { color: colors.textPrimary }]}>
+            💡 Reduceri disponibile
+          </Text>
+          <Text style={[styles.discountNoteText, { color: colors.textSecondary }]}>
+            • Referral: până la -40% luna următoare{'\n'}
+            • Puncte forum: până la -40 RON la anual{'\n'}
+            • Reducerile nu se cumulează în aceeași perioadă
+          </Text>
+        </View>
+
         {/* ── Legal note ────────────────────────────────────────────────── */}
         <Text style={[styles.legal, { color: colors.textSecondary }]}>
           Abonamentul se reînnoiește automat.{'\n'}
@@ -347,6 +359,25 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_700Bold',
     fontSize: 16,
     letterSpacing: 0.3,
+  },
+
+  // Discount note
+  discountNote: {
+    width: '100%',
+    borderRadius: 12,
+    borderWidth: 1,
+    padding: 14,
+    marginBottom: 16,
+  },
+  discountNoteTitle: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 13,
+    marginBottom: 6,
+  },
+  discountNoteText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    lineHeight: 19,
   },
 
   // Legal

@@ -15,6 +15,13 @@ import { db } from './config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface PointsTransaction {
+  action: 'post' | 'comment' | 'vote' | 'solution';
+  points: number;
+  description: string;
+  createdAt: Timestamp;
+}
+
 export interface UserProfile {
   name: string;
   email: string;
@@ -22,6 +29,8 @@ export interface UserProfile {
   isPro: boolean;
   createdAt: Timestamp | null;
   lastActiveAt: Timestamp | null;
+  points: number;
+  pointsHistory: PointsTransaction[];
 }
 
 export interface UserPreferences {
@@ -93,6 +102,8 @@ export async function createUserProfile(
     isPro: false,
     createdAt: serverTimestamp(),
     lastActiveAt: serverTimestamp(),
+    points: 0,
+    pointsHistory: [],
   }, { merge: true });
 
   // Preferințe /users/{userId}/preferences/settings

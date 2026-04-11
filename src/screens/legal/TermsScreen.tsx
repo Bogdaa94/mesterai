@@ -70,6 +70,7 @@ const SECTIONS: LegalSection[] = [
   ]},
   { type: 'subheading', text: '4.6 Puncte și reduceri' },
   { type: 'body', text: 'Utilizatorii Pro câștigă puncte prin activitate în forum. Punctele pot reduce abonamentul anual cu maximum 40 RON.' },
+  { type: 'warning', text: '💡 Reduceri disponibile pentru utilizatorii Pro:\n• Prin programul de referral: până la -40% la luna următoare\n• Prin punctele câștigate în forum: până la -40 RON la abonamentul anual\n• Cele două reduceri nu se cumulează în aceeași perioadă de facturare' },
 
   // 5. Utilizarea serviciului
   { type: 'heading', text: '5. Utilizarea Serviciului' },

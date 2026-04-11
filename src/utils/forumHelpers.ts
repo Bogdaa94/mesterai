@@ -9,6 +9,7 @@ import {
   updateDoc,
   addDoc,
   increment,
+  arrayUnion,
   serverTimestamp,
   Timestamp,
 } from 'firebase/firestore';
@@ -84,4 +85,46 @@ export async function createPost(
 export async function markResolved(postId: string): Promise<void> {
   const ref = doc(db, 'forum_posts', postId);
   await updateDoc(ref, { resolved: true });
+}
+
+// ─── Points ───────────────────────────────────────────────────────────────────
+
+const POINTS_MAP: Record<'post' | 'comment' | 'vote' | 'solution', number> = {
+  post:     5,
+  comment:  2,
+  vote:     1,
+  solution: 10,
+};
+
+const MAX_HISTORY = 50;
+
+export async function awardPoints(
+  userId: string,
+  action: 'post' | 'comment' | 'vote' | 'solution',
+  description: string
+): Promise<void> {
+  const points = POINTS_MAP[action];
+  const userRef = doc(db, 'users', userId);
+
+  const transaction = {
+    action,
+    points,
+    description,
+    createdAt: Timestamp.now(),
+  };
+
+  // arrayUnion keeps the array append-only; trimming to MAX_HISTORY is done
+  // server-side via Cloud Functions. Client just appends.
+  await updateDoc(userRef, {
+    points: increment(points),
+    pointsHistory: arrayUnion(transaction),
+  });
+}
+
+export function pointsToRON(points: number): number {
+  return Math.floor(points / 10);
+}
+
+export function pointsUntilMax(points: number): number {
+  return Math.max(0, 400 - points);
 }
