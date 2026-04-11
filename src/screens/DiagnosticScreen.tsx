@@ -24,7 +24,7 @@ import { usePro } from '../context/ProContext';
 import { brand } from '../theme/colors';
 import { askMester, ChatMessage } from '../services/gemini';
 import { saveProblem } from '../firebase/firestore';
-import { HomeStackParamList, RootStackParamList } from '../navigation/AppNavigator';
+import { HomeStackParamList, HistoryStackParamList, RootStackParamList, DiagnosticParams } from '../navigation/AppNavigator';
 import AIMessage from '../components/AIMessage';
 import { useActivityTracker } from '../hooks/useActivityTracker';
 
@@ -50,7 +50,9 @@ interface Message {
   questionText?: string;
 }
 
-type DiagRoute = RouteProp<HomeStackParamList, 'Diagnostic'>;
+// DiagnosticScreen e folosit atât din HomeStack cât și din HistoryStack —
+// ambele au același tip de params (DiagnosticParams)
+type DiagRoute = RouteProp<{ Diagnostic: DiagnosticParams }, 'Diagnostic'>;
 type DiagNav   = StackNavigationProp<RootStackParamList>;
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
@@ -112,14 +114,15 @@ export default function DiagnosticScreen() {
   const route = useRoute<DiagRoute>();
   const insets = useSafeAreaInsets();
 
-  const { categoryId } = route.params;
+  const { categoryId, description: historyDesc, aiResponse: historyAI } = route.params;
   const categoryLabel = CATEGORY_LABELS[categoryId] ?? categoryId;
+  const isFromHistory = !!(historyDesc && historyAI);
 
   const [messages, setMessages] = useState<Message[]>([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
   const [conversationHistory, setConversationHistory] = useState<ChatMessage[]>([]);
-  const [saved, setSaved] = useState(false);
+  const [saved, setSaved] = useState(isFromHistory); // deja salvată
 
   // Foto state
   const [pendingImageUri, setPendingImageUri] = useState<string | null>(null);
@@ -136,11 +139,22 @@ export default function DiagnosticScreen() {
     };
   }, []);
 
-  // Primul mesaj automat de la AI
+  // Inițializare mesaje — greeting nou sau conversație reluată din Istoric
   useEffect(() => {
-    const greeting = `Bună! Sunt aici să te ajut cu ${categoryLabel}. Descrie-mi problema sau trimite o poză și rezolvăm împreună! 👇`;
-    setMessages([{ id: '0', role: 'ai', text: greeting }]);
-  }, [categoryLabel]);
+    if (isFromHistory && historyDesc && historyAI) {
+      setMessages([
+        { id: '0', role: 'user', text: historyDesc },
+        { id: '1', role: 'ai',   text: historyAI   },
+      ]);
+      setConversationHistory([
+        { role: 'user', parts: [{ text: historyDesc }] },
+        { role: 'model', parts: [{ text: historyAI }] },
+      ]);
+    } else {
+      const greeting = `Bună! Sunt aici să te ajut cu ${categoryLabel}. Descrie-mi problema sau trimite o poză și rezolvăm împreună! 👇`;
+      setMessages([{ id: '0', role: 'ai', text: greeting }]);
+    }
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const scrollToBottom = () => {
     scrollRef.current?.scrollToEnd({ animated: false });

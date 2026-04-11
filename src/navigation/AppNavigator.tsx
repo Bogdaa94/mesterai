@@ -30,10 +30,23 @@ import PrivacyScreen from '../screens/legal/PrivacyScreen';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
+export type DiagnosticParams = {
+  categoryId: string;
+  // Opțional — trimis din HistoryScreen pentru a relua o conversație
+  problemId?: string;
+  description?: string;
+  aiResponse?: string;
+};
+
 export type HomeStackParamList = {
   Home: undefined;
   Category: { categoryId: string };
-  Diagnostic: { categoryId: string };
+  Diagnostic: DiagnosticParams;
+};
+
+export type HistoryStackParamList = {
+  HistoryMain: undefined;
+  Diagnostic: DiagnosticParams;
 };
 
 export type ForumStackParamList = {
@@ -72,11 +85,12 @@ const CONSENT_KEY = (uid: string) => `consent_given_${uid}`;
 
 // ── Navigators ───────────────────────────────────────────────────────────────
 
-const HomeStack  = createStackNavigator<HomeStackParamList>();
-const ForumStack = createStackNavigator<ForumStackParamList>();
-const MainStack  = createStackNavigator<RootStackParamList>();
-const Tab        = createBottomTabNavigator<TabParamList>();
-const AuthStack  = createStackNavigator<AuthStackParamList>();
+const HomeStack    = createStackNavigator<HomeStackParamList>();
+const HistoryStack = createStackNavigator<HistoryStackParamList>();
+const ForumStack   = createStackNavigator<ForumStackParamList>();
+const MainStack    = createStackNavigator<RootStackParamList>();
+const Tab          = createBottomTabNavigator<TabParamList>();
+const AuthStack    = createStackNavigator<AuthStackParamList>();
 
 function HomeStackNavigator() {
   const { colors } = useTheme();
@@ -93,6 +107,21 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="Category"   component={CategoryScreen}   options={{ title: 'Categorie' }} />
       <HomeStack.Screen name="Diagnostic" component={DiagnosticScreen} options={{ headerShown: false }} />
     </HomeStack.Navigator>
+  );
+}
+
+function HistoryStackNavigator() {
+  const { colors } = useTheme();
+  return (
+    <HistoryStack.Navigator
+      screenOptions={{
+        headerShown: false,
+        cardStyle: { backgroundColor: colors.bgPage },
+      }}
+    >
+      <HistoryStack.Screen name="HistoryMain" component={HistoryScreen} />
+      <HistoryStack.Screen name="Diagnostic"  component={DiagnosticScreen} />
+    </HistoryStack.Navigator>
   );
 }
 
@@ -138,7 +167,7 @@ function TabNavigator() {
       <Tab.Screen name="Acasă"   component={HomeStackNavigator} />
       <Tab.Screen name="Forum"   component={ForumStackNavigator} />
       <Tab.Screen name="Meșteri" component={MesteriScreen} />
-      <Tab.Screen name="Istoric" component={HistoryScreen} />
+      <Tab.Screen name="Istoric" component={HistoryStackNavigator} />
       <Tab.Screen name="Profil"  component={ProfileScreen} />
     </Tab.Navigator>
   );
