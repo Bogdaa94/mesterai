@@ -20,10 +20,11 @@ import { Ionicons } from '@expo/vector-icons';
 
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
+import { usePro } from '../context/ProContext';
 import { brand } from '../theme/colors';
 import { askMester, ChatMessage } from '../services/gemini';
 import { saveProblem } from '../firebase/firestore';
-import { HomeStackParamList } from '../navigation/AppNavigator';
+import { HomeStackParamList, RootStackParamList } from '../navigation/AppNavigator';
 import AIMessage from '../components/AIMessage';
 
 // ── Category metadata ──────────────────────────────────────────────────────────
@@ -49,7 +50,7 @@ interface Message {
 }
 
 type DiagRoute = RouteProp<HomeStackParamList, 'Diagnostic'>;
-type DiagNav   = StackNavigationProp<HomeStackParamList, 'Diagnostic'>;
+type DiagNav   = StackNavigationProp<RootStackParamList>;
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
@@ -104,6 +105,7 @@ const bubbleStyles = StyleSheet.create({
 export default function DiagnosticScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
+  const { isPro, dailyCount, freeLimit, hasReachedLimit, increment } = usePro();
   const navigation = useNavigation<DiagNav>();
   const route = useRoute<DiagRoute>();
   const insets = useSafeAreaInsets();
@@ -248,6 +250,12 @@ export default function DiagnosticScreen() {
     const text = input.trim();
     if ((!text && !pendingImageUri) || loading) return;
 
+    // Verifică limita zilnică pentru Free users
+    if (hasReachedLimit) {
+      navigation.navigate('Paywall');
+      return;
+    }
+
     const imageUri = pendingImageUri;
     const imageBase64 = pendingImageBase64;
     const questionSnap = text || 'Analiză foto';
@@ -286,6 +294,9 @@ export default function DiagnosticScreen() {
       typeMessage(aiText, () => {
         setLoading(false);
       });
+
+      // Incrementează contorul zilnic după răspuns reușit
+      await increment();
 
       const updatedHistory: ChatMessage[] = [
         ...conversationHistory,
@@ -360,6 +371,25 @@ export default function DiagnosticScreen() {
           )}
         </ScrollView>
 
+        {/* Banner limită zilnică — vizibil pentru Free users */}
+        {!isPro && dailyCount > 0 && (
+          <TouchableOpacity
+            style={[
+              styles.limitBanner,
+              { backgroundColor: hasReachedLimit ? 'rgba(255,59,48,0.10)' : 'rgba(255,107,0,0.08)',
+                borderColor: hasReachedLimit ? 'rgba(255,59,48,0.25)' : 'rgba(255,107,0,0.20)' },
+            ]}
+            onPress={() => navigation.navigate('Paywall')}
+            activeOpacity={0.75}
+          >
+            <Text style={[styles.limitBannerText, { color: hasReachedLimit ? '#FF3B30' : brand.orange }]}>
+              {hasReachedLimit
+                ? `Ai atins limita de ${freeLimit} probleme gratuite azi. Apasă pentru Pro 💎`
+                : `Ai folosit ${dailyCount}/${freeLimit} probleme gratuite azi`}
+            </Text>
+          </TouchableOpacity>
+        )}
+
         {/* Image preview strip */}
         {pendingImageUri && (
           <View style={[styles.previewStrip, { backgroundColor: colors.bgApp, borderTopColor: colors.border }]}>
@@ -432,6 +462,20 @@ const styles = StyleSheet.create({
 
   messageList: { flex: 1 },
   messageContent: { paddingTop: 16 },
+
+  limitBanner: {
+    marginHorizontal: 12,
+    marginBottom: 6,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 10,
+    borderWidth: 1,
+  },
+  limitBannerText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 12,
+    textAlign: 'center',
+  },
 
   previewStrip: {
     paddingHorizontal: 16,

@@ -20,6 +20,8 @@ import PaywallScreen from '../screens/PaywallScreen';
 import SearchScreen from '../screens/SearchScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
+import MesteriScreen from '../screens/MesteriScreen';
+import FiiMesterScreen from '../screens/FiiMesterScreen';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -32,11 +34,13 @@ export type HomeStackParamList = {
 export type RootStackParamList = {
   MainTabs: undefined;
   Paywall: undefined;
+  FiiMester: undefined;
 };
 
 export type TabParamList = {
   Acasă: undefined;
   Caută: undefined;
+  Meșteri: undefined;
   Istoric: undefined;
   Profil: undefined;
 };
@@ -73,10 +77,11 @@ function HomeStackNavigator() {
 type IoniconsName = React.ComponentProps<typeof Ionicons>['name'];
 
 const TAB_ICONS: Record<string, { active: IoniconsName; inactive: IoniconsName }> = {
-  'Acasă':  { active: 'home',   inactive: 'home-outline'   },
-  'Caută':  { active: 'search', inactive: 'search-outline' },
-  'Istoric':{ active: 'list',   inactive: 'list-outline'   },
-  'Profil': { active: 'person', inactive: 'person-outline' },
+  'Acasă':   { active: 'home',       inactive: 'home-outline'       },
+  'Caută':   { active: 'search',     inactive: 'search-outline'     },
+  'Meșteri': { active: 'construct',  inactive: 'construct-outline'  },
+  'Istoric': { active: 'list',       inactive: 'list-outline'       },
+  'Profil':  { active: 'person',     inactive: 'person-outline'     },
 };
 
 function TabNavigator() {
@@ -101,6 +106,7 @@ function TabNavigator() {
     >
       <Tab.Screen name="Acasă"   component={HomeStackNavigator} />
       <Tab.Screen name="Caută"   component={SearchScreen} />
+      <Tab.Screen name="Meșteri" component={MesteriScreen} />
       <Tab.Screen name="Istoric" component={HistoryScreen} />
       <Tab.Screen name="Profil"  component={ProfileScreen} />
     </Tab.Navigator>
@@ -116,6 +122,11 @@ function MainApp() {
         name="Paywall"
         component={PaywallScreen}
         options={{ presentation: 'modal' }}
+      />
+      <MainStack.Screen
+        name="FiiMester"
+        component={FiiMesterScreen}
+        options={{ presentation: 'modal', headerShown: false }}
       />
     </MainStack.Navigator>
   );

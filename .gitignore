@@ -43,3 +43,6 @@ yarn-error.*
 
 # Claude Code
 .claude/
+
+# Firebase service account (secret — nu commit niciodată!)
+scripts/serviceAccount.json

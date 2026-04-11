@@ -13,6 +13,7 @@ import {
 
 import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
+import { ProProvider } from './src/context/ProContext';
 import AppNavigator from './src/navigation/AppNavigator';
 
 function AppContent() {
@@ -39,7 +40,9 @@ export default function App() {
   return (
     <AuthProvider>
       <ThemeProvider>
-        <AppContent />
+        <ProProvider>
+          <AppContent />
+        </ProProvider>
       </ThemeProvider>
     </AuthProvider>
   );

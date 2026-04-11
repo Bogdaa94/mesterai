@@ -3,17 +3,24 @@ import { db } from '../firebase/config';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
+export interface SolutieRAG {
+  dificultate: string;
+  timp_estimat: string;
+  pasi: string[];
+  sfat_pro: string;
+}
+
 export interface Scenariu {
   id: string;
+  categorie: string;
   titlu: string;
   problema: string;
   cuvinte_cheie: string[];
-  solutie_rezumat: string;
-  dificultate: string;
-  timp_estimat: string;
-  materiale: string[];
-  cand_specialist: string;
-  categorie: string;
+  cauze_posibile: string[];
+  solutie: SolutieRAG;
+  materiale_necesare: string[];
+  cand_chemi_specialistul: string;
+  embedding: number[];
 }
 
 // ─── Cuvinte comune de ignorat ────────────────────────────────────────────────
@@ -42,7 +49,7 @@ function extractKeywords(query: string): string[] {
 // ─── Scor relevanță ───────────────────────────────────────────────────────────
 
 function scoreScenariu(scenariu: Scenariu, queryKeywords: string[]): number {
-  const scenariuKeywords = scenariu.cuvinte_cheie.map((k) => k.toLowerCase());
+  const scenariuKeywords = (scenariu.cuvinte_cheie ?? []).map((k) => k.toLowerCase());
   const titluWords = scenariu.titlu.toLowerCase().split(/\s+/);
   const problemaWords = scenariu.problema.toLowerCase().split(/\s+/);
 
@@ -101,14 +108,20 @@ export async function searchScenarii(
 export function formatRAGContext(scenarii: Scenariu[]): string {
   if (scenarii.length === 0) return '';
 
-  const items = scenarii.map((s) =>
-    `**${s.titlu}**
+  const items = scenarii.map((s) => {
+    const pasi = (s.solutie?.pasi ?? []).map((p, i) => `  ${i + 1}. ${p}`).join('\n');
+    const cauze = (s.cauze_posibile ?? []).join(', ');
+    const materiale = (s.materiale_necesare ?? []).join(', ');
+    return `**${s.titlu}**
 Problemă: ${s.problema}
-Soluție: ${s.solutie_rezumat}
-Materiale: ${s.materiale.join(', ')}
-Dificultate: ${s.dificultate} | Timp: ${s.timp_estimat}
-Când specialist: ${s.cand_specialist}`
-  );
+Cauze posibile: ${cauze}
+Pași soluție:
+${pasi}
+Materiale: ${materiale}
+Dificultate: ${s.solutie?.dificultate ?? '—'} | Timp: ${s.solutie?.timp_estimat ?? '—'}
+Sfat pro: ${s.solutie?.sfat_pro ?? '—'}
+Când specialist: ${s.cand_chemi_specialistul ?? '—'}`;
+  });
 
-  return `Context relevant din baza noastră de cunoștințe:\n\n${items.join('\n\n---\n\n')}\n\nFolosește acest context ca bază pentru răspuns, dar adaptează la situația specifică a utilizatorului.`;
+  return `Context relevant din baza de cunoștințe:\n\n${items.join('\n\n---\n\n')}\n\nFolosește acest context ca bază pentru răspuns, adaptând la situația specifică a utilizatorului.`;
 }

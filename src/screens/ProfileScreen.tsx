@@ -241,7 +241,7 @@ export default function ProfileScreen() {
     {
       icon: 'construct-outline',
       label: 'Fii Meșter',
-      onPress: () => Alert.alert('Meșteri', 'Înrolarea ca meșter va fi disponibilă în curând.'),
+      onPress: () => navigation.navigate('FiiMester'),
     },
   ];
 
