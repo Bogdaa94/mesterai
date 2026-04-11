@@ -9,7 +9,7 @@ module.exports = {
     orientation: 'portrait',
     icon: './assets/icon.png',
     userInterfaceStyle: 'light',
-    newArchEnabled: true,
+    newArchEnabled: false,
     splash: {
       image: './assets/splash-icon.png',
       resizeMode: 'contain',
@@ -17,6 +17,7 @@ module.exports = {
     },
     ios: {
       supportsTablet: true,
+      bundleIdentifier: 'com.anonymous.mesterai',
     },
     android: {
       adaptiveIcon: {
@@ -30,7 +31,16 @@ module.exports = {
     web: {
       favicon: './assets/favicon.png',
     },
-    plugins: ['expo-web-browser', 'expo-image-picker'],
+    plugins: [
+      'expo-web-browser',
+      'expo-image-picker',
+      [
+        '@react-native-google-signin/google-signin',
+        {
+          iosUrlScheme: 'com.googleusercontent.apps.14861675685-sjjrialrr49f37rdm4b8kjo3ttns1cla',
+        },
+      ],
+    ],
     extra: {
       geminiApiKey: process.env.GEMINI_API_KEY || '',
     },

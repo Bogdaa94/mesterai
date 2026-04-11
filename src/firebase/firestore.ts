@@ -5,6 +5,7 @@ import {
   updateDoc,
   addDoc,
   getDocs,
+  deleteDoc,
   collection,
   serverTimestamp,
   increment,
@@ -17,13 +18,16 @@ import { db } from './config';
 export interface UserProfile {
   name: string;
   email: string;
-  createdAt: Timestamp | null;
   provider: 'google' | 'apple' | 'email';
+  isPro: boolean;
+  createdAt: Timestamp | null;
+  lastActiveAt: Timestamp | null;
 }
 
 export interface UserPreferences {
   darkMode: boolean;
   notifications: boolean;
+  language: string;
 }
 
 export interface ConsentData {
@@ -42,10 +46,12 @@ export interface ProblemData {
   aiResponse: string;
   createdAt: Timestamp | null;
   resolved: boolean;
+  helpful: boolean | null;
 }
 
 export interface DailyLimit {
   count: number;
+  date: string;
   updatedAt: Timestamp | null;
 }
 
@@ -61,7 +67,7 @@ export interface ReportData {
 
 // ─── Helpers ──────────────────────────────────────────────────────────────────
 
-function todayKey(): string {
+export function todayKey(): string {
   const d = new Date();
   const yyyy = d.getFullYear();
   const mm = String(d.getMonth() + 1).padStart(2, '0');
@@ -70,6 +76,7 @@ function todayKey(): string {
 }
 
 // ─── User Profile ─────────────────────────────────────────────────────────────
+// Structură: /users/{userId}  (document direct, nu subcollecție)
 
 export async function createUserProfile(
   userId: string,
@@ -77,25 +84,35 @@ export async function createUserProfile(
   email: string,
   provider: UserProfile['provider']
 ): Promise<void> {
-  const profileRef = doc(db, 'users', userId, 'profile', 'data');
-  await setDoc(profileRef, {
+  // Document principal /users/{userId}
+  const userRef = doc(db, 'users', userId);
+  await setDoc(userRef, {
     name,
     email,
-    createdAt: serverTimestamp(),
     provider,
-  });
+    isPro: false,
+    createdAt: serverTimestamp(),
+    lastActiveAt: serverTimestamp(),
+  }, { merge: true });
 
-  const prefsRef = doc(db, 'users', userId, 'preferences', 'data');
+  // Preferințe /users/{userId}/preferences/settings
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
   await setDoc(prefsRef, {
     darkMode: false,
     notifications: true,
-  });
+    language: 'ro',
+  }, { merge: true });
 }
 
 export async function getUserProfile(userId: string): Promise<UserProfile | null> {
-  const profileRef = doc(db, 'users', userId, 'profile', 'data');
-  const snap = await getDoc(profileRef);
+  const userRef = doc(db, 'users', userId);
+  const snap = await getDoc(userRef);
   return snap.exists() ? (snap.data() as UserProfile) : null;
+}
+
+export async function updateLastActive(userId: string): Promise<void> {
+  const userRef = doc(db, 'users', userId);
+  await updateDoc(userRef, { lastActiveAt: serverTimestamp() }).catch(() => {});
 }
 
 // ─── Preferences ──────────────────────────────────────────────────────────────
@@ -104,11 +121,12 @@ export async function updatePreferences(
   userId: string,
   preferences: Partial<UserPreferences>
 ): Promise<void> {
-  const prefsRef = doc(db, 'users', userId, 'preferences', 'data');
-  await updateDoc(prefsRef, preferences);
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+  await setDoc(prefsRef, preferences, { merge: true });
 }
 
 // ─── Consent ──────────────────────────────────────────────────────────────────
+// Structură: /users/{userId}/compliance/consent
 
 export async function saveConsent(
   userId: string,
@@ -118,18 +136,27 @@ export async function saveConsent(
   await setDoc(consentRef, {
     ...consentData,
     consentedAt: serverTimestamp(),
+    version: '1.0.0',
   });
 }
 
-// ─── Problems ─────────────────────────────────────────────────────────────────
+export async function hasConsent(userId: string): Promise<boolean> {
+  const consentRef = doc(db, 'users', userId, 'compliance', 'consent');
+  const snap = await getDoc(consentRef);
+  return snap.exists();
+}
+
+// ─── Problems / Istoric ───────────────────────────────────────────────────────
+// Structură: /users/{userId}/problems/{problemId}
 
 export async function saveProblem(
   userId: string,
-  problemData: Omit<ProblemData, 'createdAt'>
+  problemData: Omit<ProblemData, 'createdAt' | 'helpful'>
 ): Promise<string> {
   const problemsRef = collection(db, 'users', userId, 'problems');
   const docRef = await addDoc(problemsRef, {
     ...problemData,
+    helpful: null,
     createdAt: serverTimestamp(),
   });
   return docRef.id;
@@ -142,13 +169,15 @@ export async function getUserProblems(userId: string): Promise<(ProblemData & { 
 }
 
 // ─── Daily Limits ─────────────────────────────────────────────────────────────
+// Structură: /daily_limits/{userId}/limits/{YYYY-MM-DD}
 
-const DAILY_LIMIT = 5;
+const FREE_DAILY_LIMIT = 3;
 
 export async function checkDailyLimit(
   userId: string
 ): Promise<{ count: number; hasReachedLimit: boolean }> {
-  const limitRef = doc(db, 'daily_limits', userId, todayKey(), 'data');
+  const today = todayKey();
+  const limitRef = doc(db, 'daily_limits', userId, 'limits', today);
   const snap = await getDoc(limitRef);
 
   if (!snap.exists()) {
@@ -156,24 +185,50 @@ export async function checkDailyLimit(
   }
 
   const { count } = snap.data() as DailyLimit;
-  return { count, hasReachedLimit: count >= DAILY_LIMIT };
+  return { count, hasReachedLimit: count >= FREE_DAILY_LIMIT };
 }
 
 export async function incrementDailyLimit(userId: string): Promise<void> {
-  const limitRef = doc(db, 'daily_limits', userId, todayKey(), 'data');
-  const snap = await getDoc(limitRef);
+  const today = todayKey();
+  const limitRef = doc(db, 'daily_limits', userId, 'limits', today);
+  await setDoc(limitRef, {
+    count: increment(1),
+    date: today,
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
 
-  if (!snap.exists()) {
-    await setDoc(limitRef, {
-      count: 1,
-      updatedAt: serverTimestamp(),
-    });
-  } else {
-    await updateDoc(limitRef, {
-      count: increment(1),
-      updatedAt: serverTimestamp(),
-    });
+// ─── Delete Account ───────────────────────────────────────────────────────────
+
+export async function deleteUserData(userId: string): Promise<void> {
+  // Șterge subcollecțiile cunoscute
+  const subcollections = [
+    collection(db, 'users', userId, 'preferences'),
+    collection(db, 'users', userId, 'compliance'),
+    collection(db, 'users', userId, 'problems'),
+  ];
+
+  for (const colRef of subcollections) {
+    const snap = await getDocs(colRef);
+    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
   }
+
+  // Șterge documentul principal
+  await deleteDoc(doc(db, 'users', userId));
+}
+
+// ─── Reports ──────────────────────────────────────────────────────────────────
+
+export async function createReport(
+  reportData: Omit<ReportData, 'createdAt' | 'status'>
+): Promise<string> {
+  const reportsRef = collection(db, 'reports');
+  const docRef = await addDoc(reportsRef, {
+    ...reportData,
+    createdAt: serverTimestamp(),
+    status: 'pending',
+  });
+  return docRef.id;
 }
 
 // ─── RAG — Conversații validate ───────────────────────────────────────────────
@@ -199,26 +254,4 @@ export async function saveValidatedConversation(
     timestamp: serverTimestamp(),
     votes: 1,
   });
-}
-
-export async function getValidatedConversations(
-  categorie: string
-): Promise<ValidatedConversation[]> {
-  const ref = collection(db, 'rag_knowledge', categorie, 'conversatii_validate');
-  const snap = await getDocs(ref);
-  return snap.docs.map((d) => d.data() as ValidatedConversation);
-}
-
-// ─── Reports ──────────────────────────────────────────────────────────────────
-
-export async function createReport(
-  reportData: Omit<ReportData, 'createdAt' | 'status'>
-): Promise<string> {
-  const reportsRef = collection(db, 'reports');
-  const docRef = await addDoc(reportsRef, {
-    ...reportData,
-    createdAt: serverTimestamp(),
-    status: 'pending',
-  });
-  return docRef.id;
 }

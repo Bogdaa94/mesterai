@@ -14,14 +14,11 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
-import { deleteUser } from 'firebase/auth';
 import { RootStackParamList } from '../navigation/AppNavigator';
-import { deleteDoc, doc } from 'firebase/firestore';
 
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { brand } from '../theme/colors';
-import { auth, db } from '../firebase/config';
 import { getUserProfile, getUserProblems, UserProfile } from '../firebase/firestore';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -140,7 +137,7 @@ const isPro = false; // TODO: conectează la subscription real
 
 export default function ProfileScreen() {
   const { colors, mode, toggleTheme } = useTheme();
-  const { user, signOut } = useAuth();
+  const { user, signOut, deleteAccount } = useAuth();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -195,9 +192,7 @@ export default function ProfileScreen() {
           style: 'destructive',
           onPress: async () => {
             try {
-              if (!user) return;
-              await deleteDoc(doc(db, 'users', user.uid));
-              await deleteUser(auth.currentUser!);
+              await deleteAccount();
             } catch (e) {
               Alert.alert('Eroare', 'Nu am putut șterge contul. Re-autentifică-te și încearcă din nou.');
             }
