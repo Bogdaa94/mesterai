@@ -8,10 +8,13 @@ import {
   ActivityIndicator,
   Alert,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { StackNavigationProp } from '@react-navigation/stack';
 import { useTheme } from '../../context/ThemeContext';
 import { useAuth } from '../../context/AuthContext';
 import { saveConsent } from '../../firebase/firestore';
 import { brand } from '../../theme/colors';
+import { AuthStackParamList } from '../../navigation/AppNavigator';
 
 // ─── Checkbox ─────────────────────────────────────────────────────────────────
 
@@ -74,6 +77,7 @@ interface Props {
 export default function ConsentScreen({ onConsentSaved }: Props) {
   const { colors } = useTheme();
   const { user, signOut } = useAuth();
+  const navigation = useNavigation<StackNavigationProp<AuthStackParamList>>();
 
   const [terms, setTerms] = useState(false);
   const [privacy, setPrivacy] = useState(false);
@@ -136,6 +140,9 @@ export default function ConsentScreen({ onConsentSaved }: Props) {
             required
             colors={colors}
           />
+          <TouchableOpacity onPress={() => navigation.navigate('Terms')} style={s.readLink}>
+            <Text style={s.readLinkText}>Citește Termenii și Condițiile →</Text>
+          </TouchableOpacity>
           <Checkbox
             checked={privacy}
             onToggle={() => setPrivacy(!privacy)}
@@ -143,6 +150,9 @@ export default function ConsentScreen({ onConsentSaved }: Props) {
             required
             colors={colors}
           />
+          <TouchableOpacity onPress={() => navigation.navigate('Privacy')} style={s.readLink}>
+            <Text style={s.readLinkText}>Citește Politica de Confidențialitate →</Text>
+          </TouchableOpacity>
           <Checkbox
             checked={aiProcessing}
             onToggle={() => setAiProcessing(!aiProcessing)}
@@ -240,6 +250,16 @@ function styles(colors: any) {
       borderWidth: 1,
       borderColor: colors.border,
       marginBottom: 16,
+    },
+    readLink: {
+      marginLeft: 34,
+      marginTop: -8,
+      marginBottom: 16,
+    },
+    readLinkText: {
+      fontFamily: 'DMSans_500Medium',
+      fontSize: 12,
+      color: brand.orange,
     },
     note: {
       fontFamily: 'DMSans_300Light',

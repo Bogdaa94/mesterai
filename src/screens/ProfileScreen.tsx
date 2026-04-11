@@ -261,12 +261,12 @@ export default function ProfileScreen() {
     {
       icon: 'lock-closed-outline',
       label: 'Confidențialitate',
-      onPress: () => openLink('https://mesterai.ro/privacy'),
+      onPress: () => navigation.navigate('Privacy'),
     },
     {
       icon: 'document-text-outline',
       label: 'Termeni și condiții',
-      onPress: () => openLink('https://mesterai.ro/terms'),
+      onPress: () => navigation.navigate('Terms'),
     },
     {
       icon: 'star-outline',

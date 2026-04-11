@@ -25,6 +25,8 @@ import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MesteriScreen from '../screens/MesteriScreen';
 import FiiMesterScreen from '../screens/FiiMesterScreen';
+import TermsScreen from '../screens/legal/TermsScreen';
+import PrivacyScreen from '../screens/legal/PrivacyScreen';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -44,6 +46,16 @@ export type RootStackParamList = {
   Paywall: undefined;
   FiiMester: undefined;
   NewPost: undefined;
+  Terms: undefined;
+  Privacy: undefined;
+};
+
+export type AuthStackParamList = {
+  Auth: undefined;
+  Consent: undefined;
+  Main: undefined;
+  Terms: undefined;
+  Privacy: undefined;
 };
 
 export type TabParamList = {
@@ -64,7 +76,7 @@ const HomeStack  = createStackNavigator<HomeStackParamList>();
 const ForumStack = createStackNavigator<ForumStackParamList>();
 const MainStack  = createStackNavigator<RootStackParamList>();
 const Tab        = createBottomTabNavigator<TabParamList>();
-const AuthStack  = createStackNavigator();
+const AuthStack  = createStackNavigator<AuthStackParamList>();
 
 function HomeStackNavigator() {
   const { colors } = useTheme();
@@ -151,6 +163,8 @@ function MainApp() {
         component={NewPostScreen}
         options={{ presentation: 'modal' }}
       />
+      <MainStack.Screen name="Terms"   component={TermsScreen}   options={{ presentation: 'modal' }} />
+      <MainStack.Screen name="Privacy" component={PrivacyScreen} options={{ presentation: 'modal' }} />
     </MainStack.Navigator>
   );
 }
@@ -197,14 +211,18 @@ export default function AppNavigator() {
         {flow === 'auth' ? (
           <AuthStack.Screen name="Auth" component={AuthScreen} />
         ) : flow === 'consent' ? (
-          <AuthStack.Screen name="Consent">
-            {() => (
-              <ConsentScreenWrapper
-                userId={user!.uid}
-                onConsent={() => setFlow('splash')}
-              />
-            )}
-          </AuthStack.Screen>
+          <>
+            <AuthStack.Screen name="Consent">
+              {() => (
+                <ConsentScreenWrapper
+                  userId={user!.uid}
+                  onConsent={() => setFlow('splash')}
+                />
+              )}
+            </AuthStack.Screen>
+            <AuthStack.Screen name="Terms"   component={TermsScreen} />
+            <AuthStack.Screen name="Privacy" component={PrivacyScreen} />
+          </>
         ) : (
           <AuthStack.Screen name="Main" component={MainApp} />
         )}
