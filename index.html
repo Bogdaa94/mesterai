@@ -1,1 +1,501 @@
+<!DOCTYPE html>
+<html lang="ro">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mester AI — Spui problema. Primești soluția.</title>
+<meta name="description" content="Mester AI este asistentul tău AI pentru probleme de acasă. Sanitare, electric, construcții, grădină, mobilă — rezolvate rapid în română.">
+<meta property="og:title" content="Mester AI — Spui problema. Primești soluția.">
+<meta property="og:description" content="Asistent AI pentru probleme de acasă. Disponibil pe iOS și Android.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://bogdaa94.github.io/mesterai">
+<link rel="icon" type="image/png" href="logo.png">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;700;800&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --orange: #FF6B00;
+    --bg: #0E0E10;
+    --card: #1A1A1D;
+    --text: #F0F0F0;
+    --muted: #6B6B75;
+  }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  /* NAV */
+  nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 20px 40px;
+    border-bottom: 1px solid rgba(255,255,255,0.06);
+  }
+  .nav-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.2rem;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .logo-dot {
+    width: 10px; height: 10px;
+    border-radius: 50%;
+    background: var(--orange);
+    box-shadow: 0 0 8px var(--orange);
+  }
+  .nav-links { display: flex; gap: 24px; }
+  .nav-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.85rem;
+    transition: color 0.2s;
+  }
+  .nav-links a:hover { color: var(--text); }
+
+  /* HERO */
+  .hero {
+    text-align: center;
+    padding: 80px 20px 60px;
+    max-width: 700px;
+    margin: 0 auto;
+  }
+  .hero-badge {
+    display: inline-block;
+    background: rgba(255,107,0,0.12);
+    border: 1px solid rgba(255,107,0,0.3);
+    color: var(--orange);
+    font-size: 0.75rem;
+    font-weight: 600;
+    padding: 6px 14px;
+    border-radius: 20px;
+    margin-bottom: 24px;
+    font-family: 'Syne', sans-serif;
+  }
+  .hero h1 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: clamp(2rem, 5vw, 3.2rem);
+    letter-spacing: -1px;
+    line-height: 1.15;
+    margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 40%, #FF9A00);
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+    background-clip: text;
+  }
+  .hero p {
+    font-size: 1rem;
+    color: var(--muted);
+    line-height: 1.7;
+    margin-bottom: 36px;
+    max-width: 500px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+
+  /* BUTTONS */
+  .btn-group { display: flex; gap: 12px; justify-content: center; flex-wrap: wrap; }
+  .btn-primary {
+    background: linear-gradient(135deg, #FF6B00, #FF9A00);
+    color: #fff;
+    padding: 14px 28px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    box-shadow: 0 6px 20px rgba(255,107,0,0.3);
+    transition: transform 0.2s, box-shadow 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-primary:hover { transform: translateY(-2px); box-shadow: 0 10px 30px rgba(255,107,0,0.4); }
+  .btn-secondary {
+    background: var(--card);
+    color: var(--text);
+    padding: 14px 28px;
+    border-radius: 12px;
+    text-decoration: none;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    border: 1px solid rgba(255,255,255,0.08);
+    transition: transform 0.2s;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .btn-secondary:hover { transform: translateY(-2px); }
+
+  /* FEATURES */
+  .features {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 16px;
+    max-width: 900px;
+    margin: 60px auto;
+    padding: 0 20px;
+  }
+  .feature-card {
+    background: var(--card);
+    border-radius: 16px;
+    padding: 24px;
+    border: 1px solid rgba(255,255,255,0.06);
+    text-align: center;
+  }
+  .feature-icon { font-size: 2rem; margin-bottom: 12px; }
+  .feature-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin-bottom: 6px;
+  }
+  .feature-sub { font-size: 0.78rem; color: var(--muted); line-height: 1.5; }
+
+  /* CATEGORIES */
+  .categories {
+    display: flex;
+    gap: 10px;
+    justify-content: center;
+    flex-wrap: wrap;
+    padding: 0 20px 60px;
+  }
+  .cat-pill {
+    padding: 8px 16px;
+    border-radius: 20px;
+    font-size: 0.78rem;
+    font-weight: 600;
+    font-family: 'Syne', sans-serif;
+  }
+
+  /* SECTION TITLE */
+  .section-title {
+    text-align: center;
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.4rem;
+    margin-bottom: 8px;
+  }
+  .section-sub {
+    text-align: center;
+    color: var(--muted);
+    font-size: 0.85rem;
+    margin-bottom: 32px;
+  }
+
+  /* LEGAL SECTION */
+  .legal-section {
+    max-width: 800px;
+    margin: 0 auto;
+    padding: 60px 20px;
+    border-top: 1px solid rgba(255,255,255,0.06);
+  }
+  .legal-title {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 1.6rem;
+    margin-bottom: 8px;
+  }
+  .legal-updated {
+    font-size: 0.78rem;
+    color: var(--muted);
+    margin-bottom: 32px;
+  }
+  .legal-section h2 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 1rem;
+    margin: 28px 0 10px;
+    color: var(--orange);
+  }
+  .legal-section h3 {
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.9rem;
+    margin: 20px 0 8px;
+  }
+  .legal-section p, .legal-section li {
+    font-size: 0.85rem;
+    color: #ccc;
+    line-height: 1.8;
+    margin-bottom: 8px;
+  }
+  .legal-section ul { padding-left: 20px; margin-bottom: 12px; }
+  .legal-section table {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 16px 0;
+    font-size: 0.82rem;
+  }
+  .legal-section th {
+    background: var(--card);
+    padding: 10px 14px;
+    text-align: left;
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    border: 1px solid rgba(255,255,255,0.08);
+  }
+  .legal-section td {
+    padding: 10px 14px;
+    border: 1px solid rgba(255,255,255,0.06);
+    color: #ccc;
+  }
+  .warning-box {
+    background: rgba(255,107,0,0.08);
+    border: 1px solid rgba(255,107,0,0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 0.85rem;
+    color: #FFB347;
+    line-height: 1.6;
+  }
+
+  /* TABS */
+  .tabs {
+    display: flex;
+    gap: 8px;
+    margin-bottom: 32px;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
+    padding-bottom: 0;
+  }
+  .tab-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-family: 'Syne', sans-serif;
+    font-weight: 700;
+    font-size: 0.88rem;
+    padding: 10px 20px;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    margin-bottom: -1px;
+    transition: all 0.2s;
+  }
+  .tab-btn.active {
+    color: var(--orange);
+    border-bottom-color: var(--orange);
+  }
+  .tab-content { display: none; }
+  .tab-content.active { display: block; }
+
+  /* FOOTER */
+  footer {
+    border-top: 1px solid rgba(255,255,255,0.06);
+    padding: 30px 40px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
+    gap: 12px;
+  }
+  .footer-logo {
+    font-family: 'Syne', sans-serif;
+    font-weight: 800;
+    font-size: 0.9rem;
+    display: flex; align-items: center; gap: 6px;
+  }
+  .footer-links { display: flex; gap: 20px; }
+  .footer-links a {
+    color: var(--muted);
+    text-decoration: none;
+    font-size: 0.78rem;
+    transition: color 0.2s;
+  }
+  .footer-links a:hover { color: var(--text); }
+  .footer-copy { color: var(--muted); font-size: 0.75rem; }
+
+  @media (max-width: 600px) {
+    nav { padding: 16px 20px; }
+    .nav-links { display: none; }
+    footer { flex-direction: column; text-align: center; }
+  }
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <div class="nav-logo">
+    <div class="logo-dot"></div>
+    Mester AI
+  </div>
+  <div class="nav-links">
+    <a href="#features">Funcții</a>
+    <a href="#privacy">Confidențialitate</a>
+    <a href="#terms">Termeni</a>
+    <a href="mailto:contact@mesterai.ro">Contact</a>
+  </div>
+</nav>
+
+<!-- HERO -->
+<div class="hero">
+  <div class="hero-badge">🤖 Powered by Gemini AI</div>
+  <h1>Spui problema.<br>Primești soluția.</h1>
+  <p>Asistentul tău AI pentru probleme de acasă — sanitare, electric, construcții, grădină și mobilă. Rapid, în română, cu meșteri din zona ta.</p>
+  <div class="btn-group">
+    <a href="#" class="btn-primary">🍎 App Store — iOS</a>
+    <a href="#" class="btn-secondary">🤖 Google Play — Android</a>
+  </div>
+</div>
+
+<!-- CATEGORIES -->
+<div class="categories">
+  <div class="cat-pill" style="background:rgba(21,101,192,0.15);color:#5B9BD5">🔧 Sanitare</div>
+  <div class="cat-pill" style="background:rgba(249,168,37,0.15);color:#F9A825">⚡ Electric</div>
+  <div class="cat-pill" style="background:rgba(84,110,122,0.15);color:#8EAAB8">🏗️ Construcții</div>
+  <div class="cat-pill" style="background:rgba(46,125,50,0.15);color:#66BB6A">🪴 Grădină</div>
+  <div class="cat-pill" style="background:rgba(93,64,55,0.15);color:#A1887F">🪵 Mobilă</div>
+</div>
+
+<!-- FEATURES -->
+<div id="features" style="padding: 0 20px 20px;">
+  <div class="section-title">Tot ce ai nevoie</div>
+  <div class="section-sub">Gratuit sau Pro — casa ta e acoperită</div>
+</div>
+<div class="features">
+  <div class="feature-card">
+    <div class="feature-icon">🤖</div>
+    <div class="feature-title">AI specializat</div>
+    <div class="feature-sub">Gemini 2.0 + baza de cunoștințe românească</div>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🏘️</div>
+    <div class="feature-title">Meșteri din zonă</div>
+    <div class="feature-sub">Director complet cu meșteri verificați</div>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">💬</div>
+    <div class="feature-title">Forum comunitate</div>
+    <div class="feature-sub">Experiențe reale de la alți proprietari</div>
+  </div>
+  <div class="feature-card">
+    <div class="feature-icon">🌙</div>
+    <div class="feature-title">Dark & Light mode</div>
+    <div class="feature-sub">Confortabil oricând, oriunde</div>
+  </div>
+</div>
+
+<!-- LEGAL SECTION -->
+<div class="legal-section">
+  <div class="tabs">
+    <button class="tab-btn active" onclick="showTab('privacy')">🔒 Politică de Confidențialitate</button>
+    <button class="tab-btn" onclick="showTab('terms')">📋 Termeni și Condiții</button>
+  </div>
+
+  <!-- PRIVACY POLICY -->
+  <div id="privacy" class="tab-content active">
+    <div class="legal-title">Politică de Confidențialitate</div>
+    <div class="legal-updated">Ultima actualizare: Aprilie 2026 · Versiunea 1.0</div>
+
+    <div class="warning-box">
+      ⚠️ Mester AI folosește Google Gemini AI pentru procesarea mesajelor tale. Prin utilizarea aplicației, ești de acord ca descrierile problemelor să fie trimise către Google LLC pentru generarea răspunsurilor.
+    </div>
+
+    <h2>1. Cine suntem</h2>
+    <p>Mester AI este o aplicație mobilă dezvoltată și operată de Bogdan [NUMELE DE FAMILIE], România. Contact: contact@mesterai.ro</p>
+
+    <h2>2. Ce date colectăm</h2>
+    <table>
+      <tr><th>Categorie</th><th>Date</th><th>Scop</th></tr>
+      <tr><td>Cont</td><td>Nume, email</td><td>Autentificare</td></tr>
+      <tr><td>Utilizare</td><td>Istoricul problemelor</td><td>Funcționarea serviciului</td></tr>
+      <tr><td>Forum</td><td>Postări, comentarii</td><td>Comunitate</td></tr>
+      <tr><td>Consimțământ</td><td>Data acceptării</td><td>Audit legal GDPR</td></tr>
+    </table>
+    <p><strong>Nu colectăm:</strong> date biometrice, date financiare, locație în timp real, contacte din telefon.</p>
+
+    <h2>3. Cu cine partajăm datele</h2>
+    <h3>Google Gemini</h3>
+    <p>Mesajele tale sunt trimise către Google LLC (SUA) pentru procesare AI. Google nu folosește datele pentru antrenarea modelelor. Transfer protejat prin Clauze Contractuale Standard (SCC).</p>
+    <h3>Google Firebase</h3>
+    <p>Infrastructură de autentificare și stocare date. Servere în Europa (eu-west).</p>
+    <h3>RevenueCat</h3>
+    <p>Gestionarea abonamentelor Pro. Nu primește date de card.</p>
+    <p><strong>Nu vindem datele tale.</strong></p>
+
+    <h2>4. Drepturile tale (GDPR)</h2>
+    <ul>
+      <li><strong>Acces</strong> — să știi ce date deținem → contact@mesterai.ro</li>
+      <li><strong>Ștergere</strong> — Setări → Șterge contul (automat)</li>
+      <li><strong>Portabilitate</strong> — datele în format electronic → email</li>
+      <li><strong>Retragere consimțământ</strong> — Setări → Confidențialitate</li>
+    </ul>
+
+    <h2>5. Transparență AI (EU AI Act)</h2>
+    <p>Mester AI este clasificat ca sistem AI cu <strong>risc scăzut</strong>. Toate răspunsurile AI sunt marcate vizibil în aplicație. Procesorul AI: Google LLC prin modelul Gemini 2.0 Flash.</p>
+
+    <h2>6. Contact & ANSPDCP</h2>
+    <p>Email: contact@mesterai.ro</p>
+    <p>Poți depune plângere la ANSPDCP: <a href="https://www.anspdcp.ro" style="color:var(--orange)">anspdcp.ro</a></p>
+  </div>
+
+  <!-- TERMS -->
+  <div id="terms" class="tab-content">
+    <div class="legal-title">Termeni și Condiții</div>
+    <div class="legal-updated">Ultima actualizare: Aprilie 2026 · Versiunea 1.0</div>
+
+    <div class="warning-box">
+      ⚠️ Recomandările generate de Mester AI au caracter strict informativ. Nu înlocuiesc consultarea unui specialist autorizat. Mester AI nu este responsabil pentru daune rezultate din aplicarea recomandărilor fără verificare profesională.
+    </div>
+
+    <h2>1. Despre Mester AI</h2>
+    <p>Mester AI este o platformă digitală de asistență pentru probleme de locuință, disponibilă pe iOS și Android, dezvoltată de Bogdan [NUMELE DE FAMILIE], România.</p>
+
+    <h2>2. Vârsta minimă</h2>
+    <p>Serviciul este destinat persoanelor cu vârsta de minimum <strong>16 ani</strong>.</p>
+
+    <h2>3. Planuri și prețuri</h2>
+    <table>
+      <tr><th>Plan</th><th>Preț</th><th>Include</th></tr>
+      <tr><td>Free</td><td>Gratuit</td><td>3 conversații AI/zi</td></tr>
+      <tr><td>Pro Lunar</td><td>34,99 RON/lună</td><td>Nelimitat + toate funcțiile</td></tr>
+      <tr><td>Pro Anual</td><td>299,99 RON/an</td><td>Nelimitat + economisești 28%</td></tr>
+    </table>
+    <p>Abonamentele se reînnoiesc automat. Poți anula oricând din Setările App Store / Google Play cu minimum 24h înainte de reînnoire.</p>
+
+    <h2>4. Program Referral</h2>
+    <p>Utilizatorii Pro pot invita prieteni. Cel care invită primește <strong>-40%</strong> luna următoare, cel invitat primește <strong>-20%</strong> prima lună.</p>
+
+    <h2>5. Înregistrare Meșteri</h2>
+    <p>Înregistrarea ca meșter costă <strong>1,99€</strong> (taxă unică, nereturnabilă). 3 feedback-uri negative duc la suspendarea automată a profilului.</p>
+
+    <h2>6. Inteligența Artificială</h2>
+    <p>Răspunsurile sunt generate de <strong>Google Gemini 2.0 Flash</strong> și au caracter informativ. Mester AI nu este responsabil pentru daune rezultate din aplicarea recomandărilor AI fără consultarea unui specialist autorizat.</p>
+
+    <h2>7. Contact</h2>
+    <p>Email: contact@mesterai.ro</p>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-logo">
+    <div class="logo-dot"></div>
+    Mester AI
+  </div>
+  <div class="footer-links">
+    <a href="#privacy" onclick="showTab('privacy')">Confidențialitate</a>
+    <a href="#terms" onclick="showTab('terms')">Termeni</a>
+    <a href="mailto:contact@mesterai.ro">Contact</a>
+  </div>
+  <div class="footer-copy">© 2026 Mester AI · România</div>
+</footer>
+
+<script>
+  function showTab(tab) {
+    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+    document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+    document.getElementById(tab).classList.add('active');
+    event.target.classList.add('active');
+    document.querySelector('.legal-section').scrollIntoView({ behavior: 'smooth' });
+  }
+</script>
+
+</body>
+</html>
+
 
