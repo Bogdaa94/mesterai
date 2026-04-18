@@ -1,4 +1,6 @@
 import 'react-native-gesture-handler';
+import React, { useEffect, useState } from 'react';
+import { View, ActivityIndicator } from 'react-native';
 import { StatusBar } from 'expo-status-bar';
 import { useFonts } from 'expo-font';
 import {
@@ -15,9 +17,33 @@ import { ThemeProvider, useTheme } from './src/context/ThemeContext';
 import { AuthProvider } from './src/context/AuthContext';
 import { ProProvider } from './src/context/ProContext';
 import AppNavigator from './src/navigation/AppNavigator';
+import { initI18n } from './src/i18n';
+import { brand } from './src/theme/colors';
+
+// ── I18n loader ───────────────────────────────────────────────────────────────
+
+function useI18nReady() {
+  const [ready, setReady] = useState(false);
+  useEffect(() => {
+    initI18n().then(() => setReady(true));
+  }, []);
+  return ready;
+}
+
+// ── App content ───────────────────────────────────────────────────────────────
 
 function AppContent() {
-  const { mode } = useTheme();
+  const { mode, colors } = useTheme();
+  const i18nReady = useI18nReady();
+
+  if (!i18nReady) {
+    return (
+      <View style={{ flex: 1, backgroundColor: colors.bgPage, justifyContent: 'center', alignItems: 'center' }}>
+        <ActivityIndicator size="large" color={brand.orange} />
+      </View>
+    );
+  }
+
   return (
     <>
       <AppNavigator />
@@ -25,6 +51,8 @@ function AppContent() {
     </>
   );
 }
+
+// ── Root ──────────────────────────────────────────────────────────────────────
 
 export default function App() {
   const [fontsLoaded] = useFonts({

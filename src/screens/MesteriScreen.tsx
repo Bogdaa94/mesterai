@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,6 +8,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Modal,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,46 +16,98 @@ import { useNavigation } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
 import * as Location from 'expo-location';
 import { getDistance } from 'geolib';
+import {
+  collection,
+  query,
+  where,
+  onSnapshot,
+  addDoc,
+  serverTimestamp,
+  Timestamp,
+} from 'firebase/firestore';
 
 import { useTheme } from '../context/ThemeContext';
 import { usePro } from '../context/ProContext';
+import { useAuth } from '../context/AuthContext';
 import { brand, categories } from '../theme/colors';
 import { RootStackParamList } from '../navigation/AppNavigator';
+import { db } from '../firebase/config';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
 type CategoryKey = keyof typeof categories;
 
-interface Mester {
-  id: string;
-  name: string;
-  category: CategoryKey;
-  categoryLabel: string;
-  distanceKm: number; // distanță mock (fallback când locația nu e activă)
-  lat: number;
-  lng: number;
-  rating: number;
-  reviewCount: number;
-  whatsapp: string;
+/** Document din colecția mesteri_aplicatii (status in ['active','approved']) */
+interface MesteriDoc {
+  userId:           string;
+  // Câmpuri noi (FormularMesterScreen)
+  name?:            string;
+  category?:        string;
+  location?:        string;
+  description?:     string;
+  // Câmpuri vechi (retrocompatibilitate)
+  nume?:            string;
+  categorie?:       string;
+  oras?:            string;
+  descriere?:       string;
+  // Comune
+  whatsapp:         string;
+  status:           string;
+  feedbackNegativ?: number;
+  avertismente?:    number;
+  rating?:          number;
+  reviewCount?:     number;
+  lat?:             number;
+  lng?:             number;
+  createdAt?:       Timestamp;
 }
+
+interface Mester extends MesteriDoc {
+  id: string;
+}
+
+// ── Helpers pentru câmpuri dual-format ────────────────────────────────────────
+
+function getMesterName(m: MesteriDoc):     string { return m.name     ?? m.nume     ?? '—'; }
+function getMesterCategory(m: MesteriDoc): string { return m.category ?? m.categorie ?? 'Altele'; }
+function getMesterLocation(m: MesteriDoc): string { return m.location ?? m.oras      ?? ''; }
+function getMesterDesc(m: MesteriDoc):     string { return m.description ?? m.descriere ?? ''; }
+
+// ──
+
+type MesterDisplay = Mester & {
+  categoryKey:   CategoryKey;
+  categoryLabel: string;
+  computedKm:    number | null;
+  displayName:   string;
+  displayLoc:    string;
+  displayDesc:   string;
+};
 
 type RadiusOption = 5 | 10 | 25 | 50;
 
-// ── Mock data ──────────────────────────────────────────────────────────────────
+// ── Mapare categorie text → key ────────────────────────────────────────────────
 
-// Coordonate simulate în jurul centrului București (44.4268, 26.1025)
-const MESTERI_MOCK: Mester[] = [
-  { id: '1', name: 'Ion Popescu',    category: 'sanitare',    categoryLabel: 'Sanitare',    distanceKm: 3.2,  lat: 44.4540, lng: 26.0870, rating: 4.8, reviewCount: 47, whatsapp: '40712345678' },
-  { id: '2', name: 'Mihai Ionescu',  category: 'electric',    categoryLabel: 'Electric',    distanceKm: 5.7,  lat: 44.4020, lng: 26.1500, rating: 4.6, reviewCount: 31, whatsapp: '40723456789' },
-  { id: '3', name: 'Gheorghe Radu',  category: 'constructii', categoryLabel: 'Construcții', distanceKm: 8.1,  lat: 44.4800, lng: 26.0400, rating: 4.9, reviewCount: 89, whatsapp: '40734567890' },
-  { id: '4', name: 'Alexandru Stan', category: 'electric',    categoryLabel: 'Electric',    distanceKm: 12.4, lat: 44.3900, lng: 26.2100, rating: 4.5, reviewCount: 22, whatsapp: '40745678901' },
-  { id: '5', name: 'Vasile Dumitru', category: 'gradina',     categoryLabel: 'Grădină',     distanceKm: 15.8, lat: 44.5200, lng: 26.0200, rating: 4.7, reviewCount: 15, whatsapp: '40756789012' },
-  { id: '6', name: 'Costin Marin',   category: 'mobila',      categoryLabel: 'Mobilă',      distanceKm: 22.3, lat: 44.3500, lng: 25.9500, rating: 4.4, reviewCount: 38, whatsapp: '40767890123' },
-];
+const CATEGORIE_TO_KEY: Record<string, CategoryKey> = {
+  'Sanitare':    'sanitare',
+  'Electric':    'electric',
+  'Construcții': 'constructii',
+  'Grădină':     'gradina',
+  'Mobilă':      'mobila',
+  'Altele':      'constructii',
+};
 
 const RADIUS_OPTIONS: RadiusOption[] = [5, 10, 25, 50];
 
-// ── Sub-components ─────────────────────────────────────────────────────────────
+const REPORT_REASONS = [
+  'Informații false sau înșelătoare',
+  'Comportament neprofesionist',
+  'Nu răspunde la mesaje',
+  'Prețuri neafișate / înșelătorie',
+  'Alt motiv',
+];
+
+// ── StarRating ─────────────────────────────────────────────────────────────────
 
 function StarRating({ rating }: { rating: number }) {
   return (
@@ -73,40 +126,425 @@ function StarRating({ rating }: { rating: number }) {
 }
 
 const starStyles = StyleSheet.create({
-  row: { flexDirection: 'row', alignItems: 'center', gap: 2 },
+  row:   { flexDirection: 'row', alignItems: 'center', gap: 2 },
   label: { fontSize: 12, fontFamily: 'DMSans_400Regular', color: '#F9A825', marginLeft: 2 },
+});
+
+// ── MesterCard ─────────────────────────────────────────────────────────────────
+
+interface MesterCardProps {
+  mester:         MesterDisplay;
+  locationActive: boolean;
+  isPro:          boolean;
+  onWhatsApp:     (m: MesterDisplay) => void;
+  onReport:       (m: MesterDisplay) => void;
+  colors:         any;
+}
+
+function MesterCard({ mester, locationActive, isPro, onWhatsApp, onReport, colors }: MesterCardProps) {
+  const catColors = categories[mester.categoryKey];
+  const initial   = mester.displayName.charAt(0).toUpperCase();
+  const hasWarning = (mester.feedbackNegativ ?? 0) >= 1;
+
+  const distanceText = (() => {
+    if (mester.computedKm !== null) {
+      return `📍 ~${mester.computedKm} km${locationActive ? ' 📡' : ''}`;
+    }
+    return `📍 ${mester.displayLoc}`;
+  })();
+
+  return (
+    <View style={[cardStyles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+      {/* Warning badge */}
+      {hasWarning && (
+        <View style={cardStyles.warningBanner}>
+          <Ionicons name="warning" size={13} color="#FF9500" />
+          <Text style={cardStyles.warningText}>
+            Profil cu {mester.feedbackNegativ} feedback negativ{(mester.feedbackNegativ ?? 0) > 1 ? 'e' : ''}
+          </Text>
+        </View>
+      )}
+
+      <View style={cardStyles.top}>
+        <View style={[cardStyles.avatar, { backgroundColor: catColors.light }]}>
+          <Text style={[cardStyles.avatarText, { color: catColors.primary }]}>{initial}</Text>
+        </View>
+        <View style={cardStyles.info}>
+          <Text style={[cardStyles.name, { color: colors.textPrimary }]}>{mester.displayName}</Text>
+          <View style={cardStyles.metaRow}>
+            <View style={[cardStyles.categoryBadge, { backgroundColor: catColors.light }]}>
+              <Text style={[cardStyles.categoryText, { color: catColors.primary }]}>
+                {mester.categoryLabel}
+              </Text>
+            </View>
+            <Text style={[cardStyles.distance, { color: colors.textSecondary }]}>
+              {distanceText}
+            </Text>
+          </View>
+          {(mester.rating ?? 0) > 0 ? (
+            <View style={cardStyles.ratingRow}>
+              <StarRating rating={mester.rating!} />
+              <Text style={[cardStyles.reviewCount, { color: colors.textSecondary }]}>
+                ({mester.reviewCount ?? 0})
+              </Text>
+            </View>
+          ) : (
+            <Text style={[cardStyles.noRating, { color: colors.textSecondary }]}>
+              Fără recenzii încă
+            </Text>
+          )}
+          {!!mester.displayDesc && (
+            <Text style={[cardStyles.descriere, { color: colors.textSecondary }]} numberOfLines={2}>
+              {mester.displayDesc}
+            </Text>
+          )}
+        </View>
+      </View>
+
+      <View style={cardStyles.actions}>
+        <TouchableOpacity
+          style={[cardStyles.waBtn, isPro ? cardStyles.waBtnActive : cardStyles.waBtnLocked, { flex: 1 }]}
+          onPress={() => onWhatsApp(mester)}
+          activeOpacity={0.8}
+        >
+          {isPro ? (
+            <>
+              <Ionicons name="logo-whatsapp" size={16} color="#fff" />
+              <Text style={cardStyles.waBtnText}>Contactează</Text>
+            </>
+          ) : (
+            <>
+              <Ionicons name="lock-closed" size={14} color={brand.orange} />
+              <Text style={[cardStyles.waBtnText, { color: brand.orange }]}>PRO 💎</Text>
+            </>
+          )}
+        </TouchableOpacity>
+
+        {isPro && (
+          <TouchableOpacity
+            style={[cardStyles.reportBtn, { borderColor: colors.border }]}
+            onPress={() => onReport(mester)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          >
+            <Ionicons name="flag-outline" size={15} color={colors.textSecondary} />
+          </TouchableOpacity>
+        )}
+      </View>
+    </View>
+  );
+}
+
+const cardStyles = StyleSheet.create({
+  card: {
+    marginHorizontal: 16,
+    marginBottom: 12,
+    borderRadius: 14,
+    borderWidth: 1,
+    padding: 14,
+    gap: 12,
+  },
+  warningBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: 'rgba(255,149,0,0.10)',
+    borderRadius: 8,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+  },
+  warningText: {
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 11,
+    color: '#FF9500',
+  },
+  top:          { flexDirection: 'row', gap: 12 },
+  avatar: {
+    width: 48,
+    height: 48,
+    borderRadius: 24,
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+  },
+  avatarText:    { fontFamily: 'Syne_700Bold', fontSize: 20 },
+  info:          { flex: 1, gap: 4 },
+  name:          { fontFamily: 'Syne_700Bold', fontSize: 15 },
+  metaRow:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  categoryBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
+  categoryText:  { fontFamily: 'DMSans_400Regular', fontSize: 11 },
+  distance:      { fontFamily: 'DMSans_400Regular', fontSize: 12 },
+  ratingRow:     { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  reviewCount:   { fontFamily: 'DMSans_400Regular', fontSize: 11 },
+  noRating:      { fontFamily: 'DMSans_400Regular', fontSize: 11, fontStyle: 'italic' },
+  descriere:     { fontFamily: 'DMSans_400Regular', fontSize: 12, lineHeight: 17, marginTop: 2 },
+  actions: {
+    flexDirection: 'row',
+    gap: 10,
+    alignItems: 'center',
+  },
+  waBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 10,
+    borderRadius: 10,
+  },
+  waBtnActive: { backgroundColor: '#25D366' },
+  waBtnLocked: {
+    backgroundColor: 'rgba(255,107,0,0.08)',
+    borderWidth: 1,
+    borderColor: 'rgba(255,107,0,0.25)',
+  },
+  waBtnText: { color: '#fff', fontFamily: 'DMSans_500Medium', fontSize: 14 },
+  reportBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+});
+
+// ── ReportModal ────────────────────────────────────────────────────────────────
+
+interface ReportModalProps {
+  mester:   MesterDisplay | null;
+  visible:  boolean;
+  onClose:  () => void;
+  userId:   string;
+  colors:   any;
+}
+
+function ReportModal({ mester, visible, onClose, userId, colors }: ReportModalProps) {
+  const [selected, setSelected]   = useState<string | null>(null);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!mester || !selected) return;
+    setSubmitting(true);
+    try {
+      await addDoc(collection(db, 'rapoarte_mesteri'), {
+        mesterId:    mester.id,
+        mesterUserId: mester.userId,
+        reporterUserId: userId,
+        reason:      selected,
+        createdAt:   serverTimestamp(),
+      });
+      Alert.alert('Raport trimis', 'Mulțumim! Echipa noastră va verifica profilul.');
+      setSelected(null);
+      onClose();
+    } catch {
+      Alert.alert('Eroare', 'Nu am putut trimite raportul. Încearcă din nou.');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <Modal
+      visible={visible}
+      transparent
+      animationType="slide"
+      onRequestClose={onClose}
+    >
+      <View style={modalStyles.overlay}>
+        <View style={[modalStyles.sheet, { backgroundColor: colors.bgCard }]}>
+          <View style={modalStyles.handle} />
+          <Text style={[modalStyles.title, { color: colors.textPrimary }]}>
+            Raportează meșter
+          </Text>
+          {mester && (
+            <Text style={[modalStyles.subtitle, { color: colors.textSecondary }]}>
+              {mester.displayName}
+            </Text>
+          )}
+
+          <View style={modalStyles.reasons}>
+            {REPORT_REASONS.map((r) => (
+              <TouchableOpacity
+                key={r}
+                style={[
+                  modalStyles.reasonRow,
+                  { borderColor: colors.border },
+                  selected === r && { borderColor: brand.orange, backgroundColor: 'rgba(255,107,0,0.06)' },
+                ]}
+                onPress={() => setSelected(r)}
+                activeOpacity={0.7}
+              >
+                <View style={[
+                  modalStyles.radio,
+                  { borderColor: selected === r ? brand.orange : colors.textSecondary },
+                ]}>
+                  {selected === r && <View style={modalStyles.radioDot} />}
+                </View>
+                <Text style={[modalStyles.reasonText, { color: colors.textPrimary }]}>{r}</Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+
+          <TouchableOpacity
+            style={[modalStyles.submitBtn, { opacity: selected && !submitting ? 1 : 0.4 }]}
+            onPress={handleSubmit}
+            disabled={!selected || submitting}
+            activeOpacity={0.85}
+          >
+            {submitting
+              ? <ActivityIndicator color="#fff" />
+              : <Text style={modalStyles.submitText}>Trimite raport</Text>
+            }
+          </TouchableOpacity>
+
+          <TouchableOpacity onPress={onClose} style={modalStyles.cancelBtn}>
+            <Text style={[modalStyles.cancelText, { color: colors.textSecondary }]}>Anulează</Text>
+          </TouchableOpacity>
+        </View>
+      </View>
+    </Modal>
+  );
+}
+
+const modalStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    padding: 24,
+    paddingBottom: 36,
+    gap: 8,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    backgroundColor: '#ccc',
+    alignSelf: 'center',
+    marginBottom: 12,
+  },
+  title:    { fontFamily: 'Syne_700Bold',       fontSize: 18, marginBottom: 2 },
+  subtitle: { fontFamily: 'DMSans_400Regular',  fontSize: 13, marginBottom: 12 },
+  reasons:  { gap: 8, marginBottom: 16 },
+  reasonRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderWidth: 1,
+    borderRadius: 10,
+    padding: 12,
+  },
+  radio: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 2,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  radioDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: brand.orange,
+  },
+  reasonText:  { fontFamily: 'DMSans_400Regular', fontSize: 14, flex: 1 },
+  submitBtn: {
+    backgroundColor: brand.orange,
+    borderRadius: 12,
+    paddingVertical: 14,
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  submitText:  { fontFamily: 'Syne_700Bold', fontSize: 15, color: '#fff' },
+  cancelBtn:   { alignItems: 'center', paddingTop: 12 },
+  cancelText:  { fontFamily: 'DMSans_400Regular', fontSize: 14 },
 });
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function MesteriScreen() {
-  const { colors } = useTheme();
-  const { isPro } = usePro();
-  const insets = useSafeAreaInsets();
-  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+  const { colors }    = useTheme();
+  const { isPro }     = usePro();
+  const { user }      = useAuth();
+  const insets        = useSafeAreaInsets();
+  const navigation    = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  const [selectedRadius, setSelectedRadius] = useState<RadiusOption>(10);
-  const [userCoords, setUserCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  // ── Stare ─────────────────────────────────────────────────────────────────
+
+  const [mesteri, setMesteri]         = useState<Mester[]>([]);
+  const [loadingData, setLoadingData] = useState(true);
+
+  const [selectedRadius, setSelectedRadius]   = useState<RadiusOption>(10);
+  const [userCoords, setUserCoords]           = useState<{ latitude: number; longitude: number } | null>(null);
   const [locationLoading, setLocationLoading] = useState(false);
   const locationActive = userCoords !== null;
 
-  // Calculează distanța reală (geolib) sau foloseşte mock-ul
-  const mesteriWithDistance = MESTERI_MOCK.map(m => {
-    if (!userCoords) return { ...m, computedKm: m.distanceKm };
-    const meters = getDistance(
-      { latitude: userCoords.latitude, longitude: userCoords.longitude },
-      { latitude: m.lat, longitude: m.lng }
+  const [reportTarget, setReportTarget] = useState<MesterDisplay | null>(null);
+
+  // ── Firestore: onSnapshot — status in ['active', 'approved'] ─────────────
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'mesteri_aplicatii'),
+      where('status', 'in', ['active', 'approved'])
     );
-    return { ...m, computedKm: Math.round(meters / 100) / 10 }; // rotunjit la 0.1 km
+
+    const unsub = onSnapshot(
+      q,
+      (snap) => {
+        const data = snap.docs.map((d) => ({ id: d.id, ...d.data() } as Mester));
+        setMesteri(data);
+        setLoadingData(false);
+      },
+      () => setLoadingData(false)
+    );
+
+    return unsub;
+  }, []);
+
+  // ── Calcul distanțe + normalizare câmpuri ────────────────────────────────
+
+  const mesteriDisplay: MesterDisplay[] = mesteri.map((m) => {
+    const cat          = getMesterCategory(m);
+    const categoryKey  = CATEGORIE_TO_KEY[cat] ?? 'constructii';
+    const categoryLabel = cat;
+    const displayName  = getMesterName(m);
+    const displayLoc   = getMesterLocation(m);
+    const displayDesc  = getMesterDesc(m);
+
+    let computedKm: number | null = null;
+    if (userCoords && m.lat != null && m.lng != null) {
+      const meters = getDistance(
+        { latitude: userCoords.latitude, longitude: userCoords.longitude },
+        { latitude: m.lat,              longitude: m.lng }
+      );
+      computedKm = Math.round(meters / 100) / 10;
+    }
+
+    return { ...m, categoryKey, categoryLabel, computedKm, displayName, displayLoc, displayDesc };
   });
 
-  const filtered = mesteriWithDistance
-    .filter(m => m.computedKm <= selectedRadius)
-    .sort((a, b) => a.computedKm - b.computedKm);
+  const withDistance    = mesteriDisplay
+    .filter((m) => m.computedKm !== null && m.computedKm <= selectedRadius)
+    .sort((a, b) => a.computedKm! - b.computedKm!);
+
+  const withoutDistance = mesteriDisplay
+    .filter((m) => m.computedKm === null)
+    .sort((a, b) => a.displayLoc.localeCompare(b.displayLoc));
+
+  const filtered = locationActive
+    ? [...withDistance, ...withoutDistance]
+    : mesteriDisplay.slice().sort((a, b) => a.displayLoc.localeCompare(b.displayLoc));
+
+  // ── Handlers ──────────────────────────────────────────────────────────────
 
   const handleLocationPress = async () => {
     if (locationActive) {
-      // Dezactivează locația
       setUserCoords(null);
       return;
     }
@@ -114,11 +552,7 @@ export default function MesteriScreen() {
     try {
       const { status } = await Location.requestForegroundPermissionsAsync();
       if (status !== 'granted') {
-        Alert.alert(
-          'Locație dezactivată',
-          'Activează locația pentru a vedea meșterii din zona ta.',
-          [{ text: 'OK' }]
-        );
+        Alert.alert('Locație dezactivată', 'Activează locația pentru a vedea distanțele reale.');
         return;
       }
       const loc = await Location.getCurrentPositionAsync({ accuracy: Location.Accuracy.Balanced });
@@ -130,144 +564,147 @@ export default function MesteriScreen() {
     }
   };
 
-  const handleWhatsApp = (mester: Mester) => {
+  const handleWhatsApp = (mester: MesterDisplay) => {
     if (!isPro) {
       navigation.navigate('Paywall');
       return;
     }
-    const url = `whatsapp://send?phone=${mester.whatsapp}&text=Bună ziua! Te-am găsit pe Mester AI și aș avea nevoie de ajutorul tău.`;
+    const phone = mester.whatsapp.replace(/\D/g, '');
+    const url = `whatsapp://send?phone=${phone}&text=Bună ziua! Te-am găsit pe Mester AI și aș avea nevoie de ajutorul tău.`;
     Linking.openURL(url).catch(() =>
       Alert.alert('WhatsApp', 'Nu s-a putut deschide WhatsApp. Verifică dacă e instalat.')
     );
   };
 
   const handleRadiusPress = (r: RadiusOption) => {
-    if (!isPro) {
-      navigation.navigate('Paywall');
-      return;
-    }
+    if (!isPro) { navigation.navigate('Paywall'); return; }
     setSelectedRadius(r);
   };
+
+  const totalCount = filtered.length;
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bgPage }]}>
       {/* Header */}
-      <View style={[styles.header, { backgroundColor: colors.bgApp, borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
+      <View style={[styles.header, {
+        backgroundColor: colors.bgApp,
+        borderBottomColor: colors.border,
+        paddingTop: insets.top + 8,
+      }]}>
         <Text style={[styles.headerTitle, { color: colors.textPrimary }]}>Meșteri din zonă</Text>
-        <TouchableOpacity onPress={handleLocationPress} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-          {locationLoading ? (
-            <ActivityIndicator size="small" color={brand.orange} />
-          ) : (
-            <Ionicons
-              name={locationActive ? 'location' : 'location-outline'}
-              size={22}
-              color={locationActive ? brand.orange : colors.textSecondary}
-            />
-          )}
-        </TouchableOpacity>
+        <View style={styles.headerActions}>
+          <TouchableOpacity
+            onPress={() => navigation.navigate('FiiMester')}
+            style={[styles.fiiMesterBtn, { backgroundColor: brand.orange }]}
+            activeOpacity={0.8}
+          >
+            <Text style={styles.fiiMesterText}>Fii Meșter</Text>
+          </TouchableOpacity>
+          <TouchableOpacity
+            onPress={handleLocationPress}
+            hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+          >
+            {locationLoading ? (
+              <ActivityIndicator size="small" color={brand.orange} />
+            ) : (
+              <Ionicons
+                name={locationActive ? 'location' : 'location-outline'}
+                size={22}
+                color={locationActive ? brand.orange : colors.textSecondary}
+              />
+            )}
+          </TouchableOpacity>
+        </View>
       </View>
 
-      <ScrollView
-        contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
-        showsVerticalScrollIndicator={false}
-      >
-        {/* Filtru rază */}
-        <View style={styles.radiusSection}>
-          <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
-            Raza de căutare {!isPro && <Text style={{ color: brand.orange }}>· PRO</Text>}
-          </Text>
-          <View style={styles.radiusRow}>
-            {RADIUS_OPTIONS.map(r => {
-              const active = selectedRadius === r && isPro;
-              return (
-                <TouchableOpacity
-                  key={r}
-                  style={[
-                    styles.radiusBtn,
-                    { borderColor: active ? brand.orange : colors.border, backgroundColor: active ? brand.orange : colors.bgCard },
-                  ]}
-                  onPress={() => handleRadiusPress(r)}
-                  activeOpacity={0.7}
-                >
-                  <Text style={[styles.radiusBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
-                    {r} km
-                  </Text>
-                </TouchableOpacity>
-              );
-            })}
-          </View>
+      {loadingData ? (
+        <View style={styles.loader}>
+          <ActivityIndicator size="large" color={brand.orange} />
         </View>
-
-        {/* Lista meșteri */}
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginHorizontal: 16 }]}>
-          {filtered.length} meșteri găsiți în raza de {selectedRadius} km
-          {locationActive ? ' · locație reală 📡' : ' · distanțe aproximative'}
-        </Text>
-
-        {filtered.length === 0 ? (
-          <View style={styles.empty}>
-            <Text style={{ fontSize: 36 }}>🔧</Text>
-            <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
-              Niciun meșter în raza selectată
+      ) : (
+        <ScrollView
+          contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + 24 }]}
+          showsVerticalScrollIndicator={false}
+        >
+          {/* Filtru rază */}
+          <View style={styles.radiusSection}>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary }]}>
+              Raza de căutare {!isPro && <Text style={{ color: brand.orange }}>· PRO</Text>}
             </Text>
+            <View style={styles.radiusRow}>
+              {RADIUS_OPTIONS.map((r) => {
+                const active = selectedRadius === r && isPro;
+                return (
+                  <TouchableOpacity
+                    key={r}
+                    style={[
+                      styles.radiusBtn,
+                      {
+                        borderColor:     active ? brand.orange : colors.border,
+                        backgroundColor: active ? brand.orange : colors.bgCard,
+                      },
+                    ]}
+                    onPress={() => handleRadiusPress(r)}
+                    activeOpacity={0.7}
+                  >
+                    <Text style={[styles.radiusBtnText, { color: active ? '#fff' : colors.textSecondary }]}>
+                      {r} km
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
           </View>
-        ) : (
-          filtered.map(mester => {
-            const catColors = categories[mester.category];
-            const initial = mester.name.charAt(0).toUpperCase();
-            const displayKm = (mester as typeof mester & { computedKm: number }).computedKm;
 
-            return (
-              <View key={mester.id} style={[styles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
-                {/* Avatar + info */}
-                <View style={styles.cardTop}>
-                  <View style={[styles.avatar, { backgroundColor: catColors.light }]}>
-                    <Text style={[styles.avatarText, { color: catColors.primary }]}>{initial}</Text>
-                  </View>
-                  <View style={styles.info}>
-                    <Text style={[styles.name, { color: colors.textPrimary }]}>{mester.name}</Text>
-                    <View style={styles.metaRow}>
-                      <View style={[styles.categoryBadge, { backgroundColor: catColors.light }]}>
-                        <Text style={[styles.categoryText, { color: catColors.primary }]}>
-                          {mester.categoryLabel}
-                        </Text>
-                      </View>
-                      <Text style={[styles.distance, { color: colors.textSecondary }]}>
-                        📍 ~{displayKm} km{locationActive ? ' 📡' : ''}
-                      </Text>
-                    </View>
-                    <View style={styles.ratingRow}>
-                      <StarRating rating={mester.rating} />
-                      <Text style={[styles.reviewCount, { color: colors.textSecondary }]}>
-                        ({mester.reviewCount})
-                      </Text>
-                    </View>
-                  </View>
-                </View>
+          {/* Sumar */}
+          <Text style={[styles.sectionLabel, { color: colors.textSecondary, marginHorizontal: 16 }]}>
+            {locationActive
+              ? `${withDistance.length} în raza de ${selectedRadius} km · ${withoutDistance.length} fără locație`
+              : `${totalCount} meșteri activi`}
+            {locationActive ? ' · locație reală 📡' : ''}
+          </Text>
 
-                {/* Buton WhatsApp */}
-                <TouchableOpacity
-                  style={[styles.waBtn, isPro ? styles.waBtnActive : styles.waBtnBlurred]}
-                  onPress={() => handleWhatsApp(mester)}
-                  activeOpacity={0.8}
-                >
-                  {isPro ? (
-                    <>
-                      <Ionicons name="logo-whatsapp" size={16} color="#fff" />
-                      <Text style={styles.waBtnText}>Contactează</Text>
-                    </>
-                  ) : (
-                    <>
-                      <Ionicons name="lock-closed" size={14} color={brand.orange} />
-                      <Text style={[styles.waBtnText, { color: brand.orange }]}>PRO 💎</Text>
-                    </>
-                  )}
-                </TouchableOpacity>
-              </View>
-            );
-          })
-        )}
-      </ScrollView>
+          {/* Lista */}
+          {filtered.length === 0 ? (
+            <View style={styles.empty}>
+              <Text style={{ fontSize: 36 }}>🔧</Text>
+              <Text style={[styles.emptyText, { color: colors.textSecondary }]}>
+                {locationActive
+                  ? 'Niciun meșter cu locație în raza selectată'
+                  : 'Niciun meșter activ momentan'}
+              </Text>
+              {locationActive && withoutDistance.length > 0 && (
+                <Text style={[styles.emptySubText, { color: colors.textSecondary }]}>
+                  {withoutDistance.length} meșteri disponibili fără locație exactă ↓
+                </Text>
+              )}
+            </View>
+          ) : (
+            filtered.map((mester) => (
+              <MesterCard
+                key={mester.id}
+                mester={mester}
+                locationActive={locationActive}
+                isPro={isPro}
+                onWhatsApp={handleWhatsApp}
+                onReport={setReportTarget}
+                colors={colors}
+              />
+            ))
+          )}
+        </ScrollView>
+      )}
+
+      {/* Report Modal */}
+      <ReportModal
+        mester={reportTarget}
+        visible={reportTarget !== null}
+        onClose={() => setReportTarget(null)}
+        userId={user?.uid ?? ''}
+        colors={colors}
+      />
     </View>
   );
 }
@@ -285,8 +722,16 @@ const styles = StyleSheet.create({
     paddingBottom: 14,
     borderBottomWidth: 1,
   },
-  headerTitle: { fontFamily: 'Syne_700Bold', fontSize: 20 },
+  headerTitle:   { fontFamily: 'Syne_700Bold', fontSize: 20 },
+  headerActions: { flexDirection: 'row', alignItems: 'center', gap: 12 },
+  fiiMesterBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  fiiMesterText: { fontFamily: 'DMSans_500Medium', fontSize: 13, color: '#fff' },
 
+  loader: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   scroll: { paddingTop: 16 },
 
   sectionLabel: {
@@ -297,9 +742,8 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
 
-  // Radius filter
   radiusSection: { paddingHorizontal: 16, marginBottom: 20 },
-  radiusRow: { flexDirection: 'row', gap: 8 },
+  radiusRow:     { flexDirection: 'row', gap: 8 },
   radiusBtn: {
     flex: 1,
     paddingVertical: 8,
@@ -309,56 +753,7 @@ const styles = StyleSheet.create({
   },
   radiusBtnText: { fontFamily: 'DMSans_400Regular', fontSize: 13 },
 
-  // Empty state
   empty: { alignItems: 'center', paddingTop: 48, gap: 12 },
-  emptyText: { fontFamily: 'DMSans_400Regular', fontSize: 14 },
-
-  // Mester card
-  card: {
-    marginHorizontal: 16,
-    marginBottom: 12,
-    borderRadius: 14,
-    borderWidth: 1,
-    padding: 14,
-    gap: 12,
-  },
-  cardTop: { flexDirection: 'row', gap: 12 },
-
-  avatar: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
-    alignItems: 'center',
-    justifyContent: 'center',
-    flexShrink: 0,
-  },
-  avatarText: { fontFamily: 'Syne_700Bold', fontSize: 20 },
-
-  info: { flex: 1, gap: 4 },
-  name: { fontFamily: 'Syne_700Bold', fontSize: 15 },
-
-  metaRow: { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  categoryBadge: { borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2 },
-  categoryText: { fontFamily: 'DMSans_400Regular', fontSize: 11 },
-  distance: { fontFamily: 'DMSans_400Regular', fontSize: 12 },
-
-  ratingRow: { flexDirection: 'row', alignItems: 'center', gap: 4 },
-  reviewCount: { fontFamily: 'DMSans_400Regular', fontSize: 11 },
-
-  // WhatsApp button
-  waBtn: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 10,
-    borderRadius: 10,
-  },
-  waBtnActive: { backgroundColor: '#25D366' },
-  waBtnBlurred: {
-    backgroundColor: 'rgba(255,107,0,0.08)',
-    borderWidth: 1,
-    borderColor: 'rgba(255,107,0,0.25)',
-  },
-  waBtnText: { color: '#fff', fontFamily: 'DMSans_400Regular', fontSize: 14 },
+  emptyText:    { fontFamily: 'DMSans_400Regular', fontSize: 14, textAlign: 'center', paddingHorizontal: 32 },
+  emptySubText: { fontFamily: 'DMSans_400Regular', fontSize: 12, textAlign: 'center', fontStyle: 'italic' },
 });

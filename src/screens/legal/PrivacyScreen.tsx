@@ -5,7 +5,7 @@ const SECTIONS: LegalSection[] = [
   // 1. Introducere
   { type: 'heading', text: '1. Introducere' },
   { type: 'body', text: 'Mester AI respectă confidențialitatea ta. Această Politică explică cum colectăm, folosim și protejăm datele tale personale, conform Regulamentului General privind Protecția Datelor (GDPR - UE 2016/679) și legislației române aplicabile.' },
-  { type: 'body', text: 'Operator de date: [NUMELE TĂU / FIRMA TA], România' },
+  { type: 'body', text: 'Operator de date: Bogdan D., Brașov, România' },
 
   // 2. Datele colectate
   { type: 'heading', text: '2. Datele pe Care le Colectăm' },
@@ -156,7 +156,7 @@ const SECTIONS: LegalSection[] = [
   { type: 'heading', text: '14. Contact' },
   { type: 'body', text: 'Email: contact@mesterai.ro' },
   { type: 'body', text: 'Website: mesterai.ro' },
-  { type: 'body', text: 'Adresă: [ADRESA TA], România' },
+  { type: 'body', text: 'Adresă: Brașov, România' },
   { type: 'body', text: 'Răspundem în maxim 30 de zile lucrătoare.' },
 
   // 15. DSA
@@ -168,14 +168,14 @@ const SECTIONS: LegalSection[] = [
     'Poți contesta deciziile de moderare prin email la contact@mesterai.ro',
   ]},
   { type: 'spacer' },
-  { type: 'body', text: 'Versiunea 1.0 — [DATA LANSĂRII] | Mester AI — [NUMELE TĂU / FIRMA TA], România' },
+  { type: 'body', text: 'Versiunea 1.0 — 2026 | Mester AI — Bogdan D., Brașov, România' },
 ];
 
 export default function PrivacyScreen() {
   return (
     <LegalScreen
       title="Politică de Confidențialitate"
-      updatedAt="[DATA LANSĂRII]"
+      updatedAt="2026"
       sections={SECTIONS}
     />
   );

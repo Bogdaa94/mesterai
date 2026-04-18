@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { View, ActivityIndicator } from 'react-native';
-import { NavigationContainer } from '@react-navigation/native';
-import { createStackNavigator } from '@react-navigation/stack';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
+import { createStackNavigator, StackNavigationProp } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
@@ -24,9 +24,17 @@ import NewPostScreen from '../screens/forum/NewPostScreen';
 import HistoryScreen from '../screens/HistoryScreen';
 import ProfileScreen from '../screens/ProfileScreen';
 import MesteriScreen from '../screens/MesteriScreen';
-import FiiMesterScreen from '../screens/FiiMesterScreen';
+import FormularMesterScreen from '../screens/FormularMesterScreen';
+import MesteriPoliticaScreen from '../screens/MesteriPoliticaScreen';
+import SearchScreen from '../screens/SearchScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import PrivacyScreen from '../screens/legal/PrivacyScreen';
+import NotificationsScreen from '../screens/NotificationsScreen';
+import {
+  registerForPushNotifications,
+  setupNotificationHandlers,
+  NotificationNavigate,
+} from '../services/notificationsService';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -42,6 +50,7 @@ export type HomeStackParamList = {
   Home: undefined;
   Category: { categoryId: string };
   Diagnostic: DiagnosticParams;
+  Search: undefined;
 };
 
 export type HistoryStackParamList = {
@@ -54,13 +63,23 @@ export type ForumStackParamList = {
   PostDetail: { postId: string };
 };
 
+export type MesteriFormData = {
+  name:        string;
+  category:    string;
+  location:    string;
+  whatsapp:    string;
+  description: string;
+};
+
 export type RootStackParamList = {
-  MainTabs: undefined;
-  Paywall: undefined;
-  FiiMester: undefined;
-  NewPost: undefined;
-  Terms: undefined;
-  Privacy: undefined;
+  MainTabs:        undefined;
+  Paywall:         undefined;
+  FiiMester:       undefined;
+  MesteriPolitica: { formData: MesteriFormData };
+  NewPost:         undefined;
+  Terms:           undefined;
+  Privacy:         undefined;
+  Notifications:   undefined;
 };
 
 export type AuthStackParamList = {
@@ -106,6 +125,7 @@ function HomeStackNavigator() {
       <HomeStack.Screen name="Home"       component={HomeScreen}       options={{ headerShown: false }} />
       <HomeStack.Screen name="Category"   component={CategoryScreen}   options={{ title: 'Categorie' }} />
       <HomeStack.Screen name="Diagnostic" component={DiagnosticScreen} options={{ headerShown: false }} />
+      <HomeStack.Screen name="Search"     component={SearchScreen}     options={{ headerShown: false }} />
     </HomeStack.Navigator>
   );
 }
@@ -173,10 +193,64 @@ function TabNavigator() {
   );
 }
 
-function MainApp() {
+// ── Notification setup (inside NavigationContainer) ─────────────────────────
+
+function NotificationSetup({ userId }: { userId: string }) {
+  const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
+
+  useEffect(() => {
+    registerForPushNotifications(userId);
+
+    const navigate: NotificationNavigate = (screen, params) => {
+      if (screen === 'PostDetail') {
+        // Navigate into Forum tab → PostDetail
+        navigation.navigate('MainTabs');
+        // Small delay so the tab renders before pushing
+        setTimeout(() => {
+          (navigation as any).navigate('Forum', {
+            screen: 'PostDetail',
+            params: { postId: params?.postId ?? '' },
+          });
+        }, 300);
+      } else if (screen === 'Forum') {
+        navigation.navigate('MainTabs');
+      } else if (screen === 'Mesteri') {
+        navigation.navigate('MainTabs');
+      } else if (screen === 'Paywall') {
+        navigation.navigate('Paywall');
+      } else if (screen === 'Notifications') {
+        navigation.navigate('Notifications');
+      } else {
+        navigation.navigate('MainTabs');
+      }
+    };
+
+    return setupNotificationHandlers(navigate);
+  }, [userId]);
+
+  return null;
+}
+
+// MainTabsWithSetup renders the tab navigator AND the invisible notification
+// setup component — both inside the MainStack context so useNavigation() works.
+function MainTabsWithSetup({ userId }: { userId: string }) {
+  return (
+    <>
+      <NotificationSetup userId={userId} />
+      <TabNavigator />
+    </>
+  );
+}
+
+function MainApp({ userId }: { userId: string }) {
+  const MainTabsComponent = React.useCallback(
+    () => <MainTabsWithSetup userId={userId} />,
+    [userId]
+  );
+
   return (
     <MainStack.Navigator screenOptions={{ headerShown: false }}>
-      <MainStack.Screen name="MainTabs" component={TabNavigator} />
+      <MainStack.Screen name="MainTabs" component={MainTabsComponent} />
       <MainStack.Screen
         name="Paywall"
         component={PaywallScreen}
@@ -184,16 +258,22 @@ function MainApp() {
       />
       <MainStack.Screen
         name="FiiMester"
-        component={FiiMesterScreen}
-        options={{ presentation: 'modal' }}
+        component={FormularMesterScreen}
+        options={{ headerShown: false, presentation: 'modal' }}
+      />
+      <MainStack.Screen
+        name="MesteriPolitica"
+        component={MesteriPoliticaScreen}
+        options={{ headerShown: false }}
       />
       <MainStack.Screen
         name="NewPost"
         component={NewPostScreen}
         options={{ presentation: 'modal' }}
       />
-      <MainStack.Screen name="Terms"   component={TermsScreen}   options={{ presentation: 'modal' }} />
-      <MainStack.Screen name="Privacy" component={PrivacyScreen} options={{ presentation: 'modal' }} />
+      <MainStack.Screen name="Terms"         component={TermsScreen}         options={{ presentation: 'modal' }} />
+      <MainStack.Screen name="Privacy"       component={PrivacyScreen}       options={{ presentation: 'modal' }} />
+      <MainStack.Screen name="Notifications" component={NotificationsScreen} options={{ presentation: 'modal' }} />
     </MainStack.Navigator>
   );
 }
@@ -253,7 +333,9 @@ export default function AppNavigator() {
             <AuthStack.Screen name="Privacy" component={PrivacyScreen} />
           </>
         ) : (
-          <AuthStack.Screen name="Main" component={MainApp} />
+          <AuthStack.Screen name="Main">
+            {() => <MainApp userId={user!.uid} />}
+          </AuthStack.Screen>
         )}
       </AuthStack.Navigator>
     </NavigationContainer>

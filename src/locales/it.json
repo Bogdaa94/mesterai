@@ -1,0 +1,125 @@
+{
+  "home": {
+    "greeting": "Buongiorno 👋",
+    "title": "Come possiamo aiutarti oggi?",
+    "search": "Descrivi il tuo problema...",
+    "categories": "CATEGORIE",
+    "lastActivity": "ULTIMA ATTIVITÀ",
+    "newProblem": "+ Nuovo problema →",
+    "inProgress": "In corso",
+    "solved": "Risolto"
+  },
+  "categories": {
+    "sanitare": "Idraulica",
+    "sanitareSub": "Rubinetti · Tubi · WC",
+    "electric": "Elettricità",
+    "electricSub": "Prese · Quadri · LED",
+    "constructii": "Costruzioni",
+    "constructiiSub": "Muratura · Isolamento",
+    "gradina": "Giardino",
+    "gradinaSub": "Irrigazione · Paesaggistica",
+    "mobila": "Mobili",
+    "mobilaSub": "Montaggio · Riparazioni"
+  },
+  "auth": {
+    "login": "Accedi",
+    "register": "Registrati",
+    "email": "Email",
+    "password": "Password",
+    "googleLogin": "Continua con Google",
+    "forgotPassword": "Password dimenticata?"
+  },
+  "forum": {
+    "title": "Forum Comunità",
+    "subtitle": "Chiedi, rispondi, guadagna punti",
+    "newPost": "Posta una domanda",
+    "topVotes": "Più votati",
+    "recent": "Recenti"
+  },
+  "mesteri": {
+    "title": "Artigiani vicino a te",
+    "filter": "Filtro distanza",
+    "contact": "Contatta"
+  },
+  "paywall": {
+    "title": "Mester AI Pro",
+    "subtitle": "Tutto sulla tua casa, risolto completamente",
+    "monthly": "Mensile",
+    "annual": "Annuale",
+    "recommended": "Consigliato",
+    "startPro": "Inizia Pro",
+    "restore": "Ripristina acquisti",
+    "cancel": "Annulla quando vuoi",
+    "flexible": "Flessibile · annulla quando vuoi",
+    "billedAnnually": "fatturato annualmente"
+  },
+  "profile": {
+    "title": "Il mio profilo",
+    "points": "I miei punti",
+    "darkMode": "Modalità scura",
+    "language": "Lingua",
+    "logout": "Disconnettiti",
+    "deleteAccount": "Elimina account",
+    "privacy": "Privacy",
+    "terms": "Termini e Condizioni",
+    "rateApp": "Valuta l'app",
+    "support": "Contatta il supporto",
+    "account": "Account",
+    "craftsmen": "Artigiani",
+    "settings": "Impostazioni",
+    "dangerZone": "Zona pericolosa",
+    "notifications": "Notifiche",
+    "beACraftsman": "Diventa artigiano",
+    "upgradeToPro": "Passa a Pro",
+    "problems": "Problemi diagnosticati",
+    "active": "Attivo",
+    "confirmLogout": "Sei sicuro di voler uscire?",
+    "confirmDelete": "Questa azione è irreversibile. Tutti i tuoi dati saranno eliminati.",
+    "deleteConfirmBtn": "Elimina definitivamente",
+    "selectLanguage": "Seleziona lingua",
+    "chooseLanguage": "Scegli la lingua dell'applicazione"
+  },
+  "diagnostic": {
+    "placeholder": "Descrivi il tuo problema...",
+    "send": "Invia",
+    "disclaimer": "Risposta generata dall'IA — indicativa",
+    "report": "Segnala risposta",
+    "addPhoto": "Aggiungi foto",
+    "camera": "Fotocamera",
+    "gallery": "Galleria",
+    "cancel": "Annulla",
+    "photoLimit": "Limite raggiunto",
+    "photoLimitMsg": "Gli account Free consentono {{limit}} foto per conversazione. Passa a PRO per foto illimitate.",
+    "comingSoon": "Input vocale in arrivo! 🎤",
+    "messageTooLong": "Il messaggio supera {{max}} caratteri. Si prega di abbreviarlo.",
+    "greeting": "Ciao! Sono qui per aiutarti con {{category}}. Descrivi il tuo problema o invia una foto e lo risolviamo insieme! 👇",
+    "dailyLimit": "Hai usato {{count}}/{{limit}} problemi gratuiti oggi",
+    "limitReached": "Hai raggiunto il limite di {{limit}} problemi gratuiti oggi. Tocca per Pro 💎",
+    "analyzePhoto": "Analizza l'immagine e identifica il problema."
+  },
+  "common": {
+    "back": "Indietro",
+    "save": "Salva",
+    "cancel": "Annulla",
+    "confirm": "Conferma",
+    "loading": "Caricamento...",
+    "error": "Errore",
+    "success": "Successo",
+    "proOnly": "Disponibile in Pro",
+    "ok": "OK"
+  },
+  "consent": {
+    "title": "Privacy & Consenso",
+    "subtitle": "Leggi e accetta per continuare",
+    "accept": "Continua →",
+    "required": "Obbligatorio"
+  },
+  "notifications": {
+    "title": "Notifiche",
+    "empty": "Nessuna notifica al momento"
+  },
+  "history": {
+    "title": "Cronologia",
+    "empty": "Nessuna diagnosi salvata"
+  }
+}

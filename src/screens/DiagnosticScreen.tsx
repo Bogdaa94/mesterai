@@ -18,6 +18,7 @@ import { StackNavigationProp } from '@react-navigation/stack';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 
+import { useTranslation } from 'react-i18next';
 import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { usePro } from '../context/ProContext';
@@ -109,6 +110,7 @@ export default function DiagnosticScreen() {
   const { colors } = useTheme();
   const { user } = useAuth();
   const { isPro, dailyCount, freeLimit, hasReachedLimit, increment } = usePro();
+  const { t, i18n } = useTranslation();
   const ping = useActivityTracker(user?.uid);
   const navigation = useNavigation<DiagNav>();
   const route = useRoute<DiagRoute>();
@@ -147,11 +149,11 @@ export default function DiagnosticScreen() {
         { id: '1', role: 'ai',   text: historyAI   },
       ]);
       setConversationHistory([
-        { role: 'user', parts: [{ text: historyDesc }] },
-        { role: 'model', parts: [{ text: historyAI }] },
+        { role: 'user',  text: historyDesc },
+        { role: 'model', text: historyAI  },
       ]);
     } else {
-      const greeting = `Bună! Sunt aici să te ajut cu ${categoryLabel}. Descrie-mi problema sau trimite o poză și rezolvăm împreună! 👇`;
+      const greeting = t('diagnostic.greeting', { category: categoryLabel });
       setMessages([{ id: '0', role: 'ai', text: greeting }]);
     }
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -195,22 +197,22 @@ export default function DiagnosticScreen() {
   // ── Photo picker ─────────────────────────────────────────────────────────────
 
   const handlePickPhoto = async () => {
-    if (photoCount >= FREE_PHOTO_LIMIT) {
+    if (!isPro && photoCount >= FREE_PHOTO_LIMIT) {
       Alert.alert(
-        'Limită atinsă',
-        `Contul Free permite ${FREE_PHOTO_LIMIT} poză per conversație. Fă upgrade la PRO pentru poze nelimitate.`,
-        [{ text: 'OK' }]
+        t('diagnostic.photoLimit'),
+        t('diagnostic.photoLimitMsg', { limit: FREE_PHOTO_LIMIT }),
+        [{ text: t('common.ok') }]
       );
       return;
     }
 
     Alert.alert(
-      'Adaugă poză',
-      'Alege sursa fotografiei',
+      t('diagnostic.addPhoto'),
+      '',
       [
-        { text: 'Cameră',   onPress: () => openPicker('camera') },
-        { text: 'Galerie',  onPress: () => openPicker('gallery') },
-        { text: 'Anulează', style: 'cancel' },
+        { text: t('diagnostic.camera'),  onPress: () => openPicker('camera') },
+        { text: t('diagnostic.gallery'), onPress: () => openPicker('gallery') },
+        { text: t('diagnostic.cancel'),  style: 'cancel' },
       ]
     );
   };
@@ -254,10 +256,42 @@ export default function DiagnosticScreen() {
     setPendingImageBase64(null);
   };
 
-  // ── Mic placeholder ──────────────────────────────────────────────────────────
+  // ── Validare input ────────────────────────────────────────────────────────────
+
+  const sanitizeAndValidate = (
+    raw: string
+  ): { safe: boolean; sanitized: string } => {
+    const manipulationPatterns = [
+      /ignor[aă].*(instruc|prompt|regul)/i,
+      /system\s*prompt/i,
+      /jailbreak/i,
+      /pretinde\s*că\s*ești/i,
+      /fără\s*restricții/i,
+      /\bDAN\b|\bAIM\b|\bSTAN\b|\bDUDE\b/,
+      /act\s*as\s*if/i,
+      /ignore\s*previous/i,
+    ];
+
+    if (manipulationPatterns.some(p => p.test(raw))) {
+      return { safe: false, sanitized: raw };
+    }
+
+    const sanitized = raw
+      .replace(/\b\d{13}\b/g, '[date eliminate]')
+      .replace(/(\+40|0)[0-9]{9}/g, '[telefon eliminat]')
+      .replace(/[\w.-]+@[\w.-]+\.\w+/g, '[email eliminat]');
+
+    return { safe: true, sanitized };
+  };
+
+  // ── Mic ──────────────────────────────────────────────────────────────────────
 
   const handleMic = () => {
-    Alert.alert('PRO', 'Inputul vocal este disponibil exclusiv pentru utilizatorii PRO.');
+    if (!isPro) {
+      navigation.navigate('Paywall');
+      return;
+    }
+    Alert.alert('🎤', t('diagnostic.comingSoon'));
   };
 
   // ── Send ─────────────────────────────────────────────────────────────────────
@@ -267,21 +301,52 @@ export default function DiagnosticScreen() {
     if ((!text && !pendingImageUri) || loading) return;
     ping();
 
-    // Verifică limita zilnică pentru Free users
+    // Verifică limita zilnică
     if (hasReachedLimit) {
       navigation.navigate('Paywall');
       return;
     }
 
+    // Verifică lungimea maximă a mesajului
+    if (text.length > 500) {
+      Alert.alert(
+        t('common.error'),
+        t('diagnostic.messageTooLong', { max: 500 }),
+      );
+      return;
+    }
+
+    // Validare și sanitizare input
+    if (text) {
+      const { safe, sanitized: _ } = sanitizeAndValidate(text);
+      if (!safe) {
+        const safetyMsgId = Date.now().toString();
+        setMessages(prev => [
+          ...prev,
+          { id: safetyMsgId, role: 'user', text },
+          {
+            id: (Date.now() + 1).toString(),
+            role: 'ai',
+            text: 'Pot ajuta doar cu probleme legate de locuință. Cu ce problemă din casă te pot ajuta? 🔧',
+          },
+        ]);
+        setInput('');
+        scrollToBottom();
+        return;
+      }
+    }
+
+    const { sanitized: sanitizedText } = sanitizeAndValidate(text);
+
     const imageUri = pendingImageUri;
     const imageBase64 = pendingImageBase64;
-    const questionSnap = text || 'Analiză foto';
+    const questionSnap = sanitizedText || 'Analiză foto';
     const aiMsgId = (Date.now() + 1).toString();
 
     const userMsg: Message = {
       id: Date.now().toString(),
       role: 'user',
-      text,
+      text: sanitizedText,
       imageUri: imageUri ?? undefined,
     };
 
@@ -301,10 +366,11 @@ export default function DiagnosticScreen() {
 
     try {
       const aiText = await askMester(
-        text || 'Analizează imaginea și identifică problema.',
+        sanitizedText || t('diagnostic.analyzePhoto'),
         categoryLabel,
         conversationHistory,
-        imageBase64 ?? undefined
+        imageBase64 ?? undefined,
+        i18n.language
       );
 
       // Pornește efectul de typewriter; dezactivează loading când termină
@@ -401,8 +467,8 @@ export default function DiagnosticScreen() {
           >
             <Text style={[styles.limitBannerText, { color: hasReachedLimit ? '#FF3B30' : brand.orange }]}>
               {hasReachedLimit
-                ? `Ai atins limita de ${freeLimit} probleme gratuite azi. Apasă pentru Pro 💎`
-                : `Ai folosit ${dailyCount}/${freeLimit} probleme gratuite azi`}
+                ? t('diagnostic.limitReached', { limit: freeLimit })
+                : t('diagnostic.dailyLimit', { count: dailyCount, limit: freeLimit })}
             </Text>
           </TouchableOpacity>
         )}
@@ -421,9 +487,13 @@ export default function DiagnosticScreen() {
 
         {/* Input bar */}
         <View style={[styles.inputBar, { backgroundColor: colors.bgApp, borderTopColor: colors.border, paddingBottom: insets.bottom || 12 }]}>
-          {/* Mic — PRO */}
+          {/* Mic */}
           <TouchableOpacity style={styles.iconBtn} onPress={handleMic}>
-            <Ionicons name="mic-outline" size={22} color={colors.textSecondary} />
+            <Ionicons
+              name={isPro ? 'mic' : 'mic-outline'}
+              size={22}
+              color={isPro ? brand.orange : colors.textSecondary}
+            />
           </TouchableOpacity>
 
           <TextInput

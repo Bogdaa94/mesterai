@@ -1,3 +1,4 @@
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -5,97 +6,102 @@ import {
   ScrollView,
   TouchableOpacity,
   StyleSheet,
-  Platform,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { StackNavigationProp } from '@react-navigation/stack';
 import { useNavigation } from '@react-navigation/native';
+import { collection, getDocs, limit, orderBy, query } from 'firebase/firestore';
 
 import { useTheme } from '../context/ThemeContext';
+import { useAuth } from '../context/AuthContext';
 import { brand } from '../theme/colors';
 import { spacing, radius } from '../theme/spacing';
 import { fonts, fontSizes } from '../theme/typography';
-import { HomeStackParamList } from '../navigation/AppNavigator';
+import { HomeStackParamList, RootStackParamList } from '../navigation/AppNavigator';
+import { db } from '../firebase/config';
+import { ProblemData } from '../firebase/firestore';
+import { timeAgo } from '../utils/timeAgo';
+import { listenUnreadCount } from '../services/notificationsService';
+import { useTranslation } from 'react-i18next';
 
 // ── Types ─────────────────────────────────────────────────────────────────────
 
 type HomeNav = StackNavigationProp<HomeStackParamList, 'Home'>;
 
-interface Category {
-  id: string;
-  label: string;
-  sub: string;
-  icon: string;
-  color: string;
-  light: string;
-}
-
-interface Activity {
-  id: string;
-  title: string;
-  categoryId: string;
-  categoryLabel: string;
-  time: string;
-  status: 'Rezolvat' | 'În progres';
-}
-
 // ── Data ──────────────────────────────────────────────────────────────────────
 
-const CATEGORIES: Category[] = [
-  { id: 'sanitare',    label: 'Sanitare',    sub: 'Robinete · Țevi · WC',      icon: '🔧', color: '#1565C0', light: 'rgba(21,101,192,0.14)'  },
-  { id: 'electric',    label: 'Electric',    sub: 'Prize · Tablouri · LED',     icon: '⚡', color: '#F9A825', light: 'rgba(249,168,37,0.14)'  },
-  { id: 'constructii', label: 'Construcții', sub: 'Zidărie · Izolații',         icon: '🏗️', color: '#546E7A', light: 'rgba(84,110,122,0.14)'  },
-  { id: 'gradina',     label: 'Grădină',     sub: 'Irigații · Peisagistică',    icon: '🪴', color: '#2E7D32', light: 'rgba(46,125,50,0.14)'   },
-  { id: 'mobila',      label: 'Mobilă',      sub: 'Montaj · Reparații',         icon: '🪵', color: '#5D4037', light: 'rgba(93,64,55,0.14)'    },
+const CATEGORY_META = [
+  { id: 'sanitare',    icon: '🔧', color: '#1565C0', light: 'rgba(21,101,192,0.14)'  },
+  { id: 'electric',    icon: '⚡', color: '#F9A825', light: 'rgba(249,168,37,0.14)'  },
+  { id: 'constructii', icon: '🏗️', color: '#546E7A', light: 'rgba(84,110,122,0.14)'  },
+  { id: 'gradina',     icon: '🪴', color: '#2E7D32', light: 'rgba(46,125,50,0.14)'   },
+  { id: 'mobila',      icon: '🪵', color: '#5D4037', light: 'rgba(93,64,55,0.14)'    },
 ];
-
-const MOCK_ACTIVITY: Activity = {
-  id: '1',
-  title: 'Robinet care picură la bucătărie',
-  categoryId: 'sanitare',
-  categoryLabel: 'Sanitare',
-  time: 'Acum 2 ore',
-  status: 'Rezolvat',
-};
 
 // ── Sub-components ─────────────────────────────────────────────────────────────
 
-function Header() {
-  const { colors } = useTheme();
-  return (
-    <View style={[styles.header, { backgroundColor: colors.bgNav, borderBottomColor: colors.border }]}>
-      <Image
-        source={require('../assets/logo.png')}
-        style={styles.headerLogo}
-        resizeMode="contain"
-      />
-      <TouchableOpacity style={[styles.iconBtn, { backgroundColor: colors.bgCard }]} activeOpacity={0.7}>
-        <Ionicons name="notifications-outline" size={20} color={colors.textSecondary} />
-      </TouchableOpacity>
-    </View>
-  );
-}
-
 function SearchBar() {
   const { colors } = useTheme();
+  const { t } = useTranslation();
   const navigation = useNavigation<HomeNav>();
   return (
     <TouchableOpacity
       activeOpacity={0.8}
       style={[styles.searchBar, { backgroundColor: colors.bgCard, borderColor: colors.border }]}
-      onPress={() => navigation.getParent()?.navigate('Caută')}
+      onPress={() => navigation.navigate('Search')}
     >
       <Ionicons name="search-outline" size={18} color={colors.textSecondary} style={{ marginRight: spacing.sm }} />
       <Text style={[styles.searchPlaceholder, { color: colors.textSecondary }]}>
-        Descrie problema ta...
+        {t('home.search')}
       </Text>
     </TouchableOpacity>
   );
 }
 
-function CategoryCard({ item, fullWidth }: { item: Category; fullWidth?: boolean }) {
+function Header({
+  unreadCount,
+  onBellPress,
+}: {
+  unreadCount: number;
+  onBellPress: () => void;
+}) {
   const { colors } = useTheme();
+  const insets = useSafeAreaInsets();
+  return (
+    <View style={[styles.header, { backgroundColor: colors.bgNav, borderBottomColor: colors.border, paddingTop: insets.top + 8 }]}>
+      <Image
+        source={require('../assets/logo.png')}
+        style={styles.headerLogo}
+        resizeMode="contain"
+      />
+      <TouchableOpacity
+        style={[styles.iconBtn, { backgroundColor: colors.bgCard }]}
+        activeOpacity={0.7}
+        onPress={onBellPress}
+      >
+        <Ionicons
+          name={unreadCount > 0 ? 'notifications' : 'notifications-outline'}
+          size={20}
+          color={unreadCount > 0 ? brand.orange : colors.textSecondary}
+        />
+        {unreadCount > 0 && (
+          <View style={styles.notifBadge}>
+            <Text style={styles.notifBadgeText}>
+              {unreadCount > 9 ? '9+' : unreadCount}
+            </Text>
+          </View>
+        )}
+      </TouchableOpacity>
+    </View>
+  );
+}
+
+type CategoryMeta = { id: string; icon: string; color: string; light: string };
+
+function CategoryCard({ item, fullWidth }: { item: CategoryMeta; fullWidth?: boolean }) {
+  const { colors } = useTheme();
+  const { t } = useTranslation();
   const navigation = useNavigation<HomeNav>();
   return (
     <TouchableOpacity
@@ -110,41 +116,39 @@ function CategoryCard({ item, fullWidth }: { item: Category; fullWidth?: boolean
         },
       ]}
     >
-      {/* Arrow top-right */}
       <Text style={[styles.arrow, { color: colors.textSecondary }]}>›</Text>
-
-      {/* Icon circle */}
       <View style={[styles.iconCircle, { backgroundColor: item.light }]}>
         <Text style={styles.iconEmoji}>{item.icon}</Text>
       </View>
-
-      {/* Labels */}
       <Text style={[styles.categoryLabel, { color: item.color, fontFamily: fonts.subheading }]}>
-        {item.label}
+        {t(`categories.${item.id}`)}
       </Text>
       <Text style={[styles.categorySub, { color: colors.textSecondary, fontFamily: fonts.body }]}>
-        {item.sub}
+        {t(`categories.${item.id}Sub`)}
       </Text>
     </TouchableOpacity>
   );
 }
 
-function ActivityCard({ item }: { item: Activity }) {
+function ActivityCard({ problem }: { problem: ProblemData & { id: string } }) {
   const { colors } = useTheme();
-  const dotColor = CATEGORIES.find(c => c.id === item.categoryId)?.color ?? brand.orange;
+  const { t } = useTranslation();
+  const meta = CATEGORY_META.find(c => c.id === problem.category);
+  const dotColor = meta?.color ?? brand.orange;
+  const status = problem.resolved ? t('home.solved') : t('home.inProgress');
   return (
     <View style={[styles.activityCard, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
       <View style={[styles.activityDot, { backgroundColor: dotColor }]} />
       <View style={styles.activityBody}>
         <Text style={[styles.activityTitle, { color: colors.textPrimary, fontFamily: fonts.bodyMedium }]} numberOfLines={1}>
-          {item.title}
+          {problem.description}
         </Text>
         <Text style={[styles.activityMeta, { color: colors.textSecondary, fontFamily: fonts.body }]}>
-          {item.categoryLabel} · {item.time}
+          {t(`categories.${problem.category}`, { defaultValue: problem.category })} · {problem.createdAt ? timeAgo(problem.createdAt) : '—'}
         </Text>
       </View>
       <View style={styles.badge}>
-        <Text style={styles.badgeText}>{item.status}</Text>
+        <Text style={styles.badgeText}>{status}</Text>
       </View>
     </View>
   );
@@ -154,16 +158,41 @@ function ActivityCard({ item }: { item: Activity }) {
 
 export default function HomeScreen() {
   const { colors } = useTheme();
+  const { user } = useAuth();
+  const { t } = useTranslation();
   const insets = useSafeAreaInsets();
   const navigation = useNavigation<HomeNav>();
+  const rootNavigation = useNavigation<StackNavigationProp<RootStackParamList>>();
 
-  // Split categories: first 4 in pairs, last one full-width
-  const pairRows = CATEGORIES.slice(0, 4);
-  const lastCategory = CATEGORIES[4];
+  const [lastProblem, setLastProblem] = useState<(ProblemData & { id: string }) | null>(null);
+  const [unreadCount, setUnreadCount]  = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+    const ref = collection(db, 'users', user.uid, 'problems');
+    getDocs(query(ref, orderBy('createdAt', 'desc'), limit(1)))
+      .then((snap) => {
+        if (!snap.empty) {
+          setLastProblem({ id: snap.docs[0].id, ...(snap.docs[0].data() as ProblemData) });
+        }
+      })
+      .catch(() => {});
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    return listenUnreadCount(user.uid, setUnreadCount);
+  }, [user]);
+
+  const pairRows = CATEGORY_META.slice(0, 4);
+  const lastCategory = CATEGORY_META[4];
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bgPage }]}>
-      <Header />
+      <Header
+        unreadCount={unreadCount}
+        onBellPress={() => rootNavigation.navigate('Notifications')}
+      />
       <ScrollView
         contentContainerStyle={[styles.scroll, { paddingBottom: insets.bottom + spacing.xl }]}
         showsVerticalScrollIndicator={false}
@@ -171,10 +200,10 @@ export default function HomeScreen() {
         {/* Greeting */}
         <View style={styles.greeting}>
           <Text style={[styles.greetingSub, { color: colors.textSecondary, fontFamily: fonts.body }]}>
-            Bună ziua 👋
+            {t('home.greeting')}
           </Text>
           <Text style={[styles.greetingMain, { color: colors.textPrimary, fontFamily: fonts.heading }]}>
-            Cu ce te ajutăm azi?
+            {t('home.title')}
           </Text>
         </View>
 
@@ -183,24 +212,26 @@ export default function HomeScreen() {
 
         {/* Categories */}
         <Text style={[styles.sectionLabel, { color: colors.textSecondary, fontFamily: fonts.bodyMedium }]}>
-          CATEGORII
+          {t('home.categories')}
         </Text>
 
-        {/* 2-column grid for first 4 */}
         <View style={styles.grid}>
           {pairRows.map(item => (
             <CategoryCard key={item.id} item={item} />
           ))}
         </View>
 
-        {/* Last item full-width */}
         <CategoryCard item={lastCategory} fullWidth />
 
         {/* Last Activity */}
-        <Text style={[styles.sectionLabel, { color: colors.textSecondary, fontFamily: fonts.bodyMedium, marginTop: spacing.xl }]}>
-          ULTIMA ACTIVITATE
-        </Text>
-        <ActivityCard item={MOCK_ACTIVITY} />
+        {lastProblem && (
+          <>
+            <Text style={[styles.sectionLabel, { color: colors.textSecondary, fontFamily: fonts.bodyMedium, marginTop: spacing.xl }]}>
+              {t('home.lastActivity')}
+            </Text>
+            <ActivityCard problem={lastProblem} />
+          </>
+        )}
 
         {/* CTA */}
         <TouchableOpacity
@@ -209,7 +240,7 @@ export default function HomeScreen() {
           style={styles.cta}
         >
           <Text style={[styles.ctaText, { fontFamily: fonts.subheading }]}>
-            + Problemă nouă →
+            {t('home.newProblem')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -228,7 +259,6 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     paddingHorizontal: spacing.xl,
-    paddingTop: Platform.OS === 'android' ? spacing.xl : spacing.lg,
     paddingBottom: spacing.lg,
     borderBottomWidth: 1,
   },
@@ -242,6 +272,24 @@ const styles = StyleSheet.create({
     borderRadius: 18,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  notifBadge: {
+    position: 'absolute',
+    top: -2,
+    right: -2,
+    minWidth: 16,
+    height: 16,
+    borderRadius: 8,
+    backgroundColor: '#E53935',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingHorizontal: 3,
+  },
+  notifBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 9,
+    fontFamily: fonts.heading,
+    lineHeight: 12,
   },
 
   // Scroll

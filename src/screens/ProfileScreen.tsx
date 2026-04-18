@@ -7,9 +7,11 @@ import {
   Switch,
   Alert,
   Linking,
+  Modal,
   StyleSheet,
   ActivityIndicator,
 } from 'react-native';
+import { useTranslation } from 'react-i18next';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
@@ -25,6 +27,12 @@ import { getUserProblems, UserProfile } from '../firebase/firestore';
 import { timeAgo } from '../utils/timeAgo';
 import { usePro } from '../context/ProContext';
 import PointsCard from '../components/PointsCard';
+import {
+  LANGUAGES,
+  changeLanguage,
+  getCurrentLanguage,
+  type LanguageCode,
+} from '../i18n';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -142,6 +150,7 @@ export default function ProfileScreen() {
   const { colors, mode, toggleTheme } = useTheme();
   const { user, signOut, deleteAccount } = useAuth();
   const { isPro } = usePro();
+  const { t, i18n } = useTranslation();
   const navigation = useNavigation<StackNavigationProp<RootStackParamList>>();
   const insets = useSafeAreaInsets();
 
@@ -149,6 +158,10 @@ export default function ProfileScreen() {
   const [problemCount, setProblemCount] = useState<number | null>(null);
   const [notificationsOn, setNotificationsOn] = useState(true);
   const [loadingProfile, setLoadingProfile] = useState(true);
+  const [langModalVisible, setLangModalVisible] = useState(false);
+  const [currentLang, setCurrentLang] = useState<LanguageCode>(
+    getCurrentLanguage()
+  );
 
   // ── Profil — onSnapshot (timp real) ───────────────────────────────────────
 
@@ -185,32 +198,40 @@ export default function ProfileScreen() {
   // ── Handlers ─────────────────────────────────────────────────────────────
 
   const handleSignOut = () => {
-    Alert.alert('Deconectare', 'Ești sigur că vrei să te deconectezi?', [
-      { text: 'Anulează', style: 'cancel' },
-      { text: 'Deconectează', style: 'destructive', onPress: () => signOut() },
+    Alert.alert(t('profile.logout'), t('profile.confirmLogout'), [
+      { text: t('common.cancel'), style: 'cancel' },
+      { text: t('profile.logout'), style: 'destructive', onPress: () => signOut() },
     ]);
   };
 
   const handleDeleteAccount = () => {
     Alert.alert(
-      'Șterge contul',
-      'Această acțiune este ireversibilă. Toate datele tale vor fi șterse.',
+      t('profile.deleteAccount'),
+      t('profile.confirmDelete'),
       [
-        { text: 'Anulează', style: 'cancel' },
+        { text: t('common.cancel'), style: 'cancel' },
         {
-          text: 'Șterge definitiv',
+          text: t('profile.deleteConfirmBtn'),
           style: 'destructive',
           onPress: async () => {
             try {
               await deleteAccount();
-            } catch (e) {
-              Alert.alert('Eroare', 'Nu am putut șterge contul. Re-autentifică-te și încearcă din nou.');
+            } catch {
+              Alert.alert(t('common.error'), 'Nu am putut șterge contul. Re-autentifică-te și încearcă din nou.');
             }
           },
         },
       ]
     );
   };
+
+  const handleSelectLanguage = async (code: LanguageCode) => {
+    await changeLanguage(code, user?.uid);
+    setCurrentLang(code);
+    setLangModalVisible(false);
+  };
+
+  const currentLangInfo = LANGUAGES.find(l => l.code === currentLang) ?? LANGUAGES[0];
 
   const openLink = (url: string) => Linking.openURL(url).catch(() => {});
   const openEmail = () => Linking.openURL('mailto:contact@mesterai.ro').catch(() => {});
@@ -224,17 +245,17 @@ export default function ProfileScreen() {
   const contRows: RowItem[] = [
     {
       icon: 'bar-chart-outline',
-      label: `Probleme diagnosticate: ${problemCount !== null ? problemCount : '—'}`,
+      label: `${t('profile.problems')}: ${problemCount !== null ? problemCount : '—'}`,
       hideChevron: true,
     },
     ...(!isPro ? [{
       icon: 'diamond-outline' as IoniconsName,
-      label: 'Upgrade la Pro',
+      label: t('profile.upgradeToPro'),
       onPress: () => navigation.navigate('Paywall'),
     }] : []),
     {
       icon: mode === 'dark' ? 'moon' : 'sunny-outline',
-      label: 'Dark Mode',
+      label: t('profile.darkMode'),
       rightSwitch: true,
       switchValue: mode === 'dark',
       onSwitchChange: () => toggleTheme(),
@@ -245,7 +266,7 @@ export default function ProfileScreen() {
   const mesteriRows: RowItem[] = [
     {
       icon: 'construct-outline',
-      label: 'Fii Meșter',
+      label: t('profile.beACraftsman'),
       onPress: () => navigation.navigate('FiiMester'),
     },
   ];
@@ -253,30 +274,35 @@ export default function ProfileScreen() {
   const setariRows: RowItem[] = [
     {
       icon: 'notifications-outline',
-      label: 'Notificări',
+      label: t('profile.notifications'),
       rightSwitch: true,
       switchValue: notificationsOn,
       onSwitchChange: setNotificationsOn,
       hideChevron: true,
     },
     {
+      icon: 'language-outline',
+      label: `${t('profile.language')}: ${currentLangInfo.flag} ${currentLangInfo.name}`,
+      onPress: () => setLangModalVisible(true),
+    },
+    {
       icon: 'lock-closed-outline',
-      label: 'Confidențialitate',
+      label: t('profile.privacy'),
       onPress: () => navigation.navigate('Privacy'),
     },
     {
       icon: 'document-text-outline',
-      label: 'Termeni și condiții',
+      label: t('profile.terms'),
       onPress: () => navigation.navigate('Terms'),
     },
     {
       icon: 'star-outline',
-      label: 'Evaluează aplicația',
+      label: t('profile.rateApp'),
       onPress: openStore,
     },
     {
       icon: 'mail-outline',
-      label: 'Contact suport',
+      label: t('profile.support'),
       onPress: openEmail,
     },
   ];
@@ -284,13 +310,13 @@ export default function ProfileScreen() {
   const pericolosRows: RowItem[] = [
     {
       icon: 'log-out-outline',
-      label: 'Deconectează-te',
+      label: t('profile.logout'),
       onPress: handleSignOut,
       destructive: true,
     },
     {
       icon: 'trash-outline',
-      label: 'Șterge contul',
+      label: t('profile.deleteAccount'),
       onPress: handleDeleteAccount,
       destructive: true,
     },
@@ -330,11 +356,11 @@ export default function ProfileScreen() {
       </View>
 
       {/* ── Secțiunea Cont ─────────────────────────────────────────────── */}
-      <SectionTitle title="Cont" colors={colors} />
+      <SectionTitle title={t('profile.account')} colors={colors} />
       <Card items={contRows} colors={colors} />
 
       {/* ── Secțiunea Puncte ───────────────────────────────────────────── */}
-      <SectionTitle title="Punctele mele" colors={colors} />
+      <SectionTitle title={t('profile.points')} colors={colors} />
       <PointsCard
         points={profile?.points ?? 0}
         pointsHistory={profile?.pointsHistory ?? []}
@@ -342,16 +368,66 @@ export default function ProfileScreen() {
       />
 
       {/* ── Secțiunea Meșteri ──────────────────────────────────────────── */}
-      <SectionTitle title="Meșteri" colors={colors} />
+      <SectionTitle title={t('profile.craftsmen')} colors={colors} />
       <Card items={mesteriRows} colors={colors} />
 
       {/* ── Secțiunea Setări ───────────────────────────────────────────── */}
-      <SectionTitle title="Setări" colors={colors} />
+      <SectionTitle title={t('profile.settings')} colors={colors} />
       <Card items={setariRows} colors={colors} />
 
       {/* ── Secțiunea Cont periculos ───────────────────────────────────── */}
-      <SectionTitle title="Cont" colors={colors} />
+      <SectionTitle title={t('profile.dangerZone')} colors={colors} />
       <Card items={pericolosRows} colors={colors} />
+
+      {/* ── Modal selectare limbă ──────────────────────────────────────── */}
+      <Modal
+        visible={langModalVisible}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setLangModalVisible(false)}
+      >
+        <TouchableOpacity
+          style={langStyles.overlay}
+          activeOpacity={1}
+          onPress={() => setLangModalVisible(false)}
+        >
+          <View
+            style={[
+              langStyles.sheet,
+              { backgroundColor: colors.bgCard, borderTopColor: colors.border },
+            ]}
+          >
+            <View style={[langStyles.handle, { backgroundColor: colors.border }]} />
+            <Text style={[langStyles.sheetTitle, { color: colors.textPrimary }]}>
+              {t('profile.chooseLanguage')}
+            </Text>
+
+            {LANGUAGES.map((lang) => {
+              const isSelected = lang.code === currentLang;
+              return (
+                <TouchableOpacity
+                  key={lang.code}
+                  style={[
+                    langStyles.langRow,
+                    { borderBottomColor: colors.border },
+                    isSelected && { backgroundColor: 'rgba(255,107,0,0.07)' },
+                  ]}
+                  onPress={() => handleSelectLanguage(lang.code)}
+                  activeOpacity={0.6}
+                >
+                  <Text style={langStyles.flag}>{lang.flag}</Text>
+                  <Text style={[langStyles.langName, { color: colors.textPrimary }]}>
+                    {lang.name}
+                  </Text>
+                  {isSelected && (
+                    <Ionicons name="checkmark" size={20} color={brand.orange} />
+                  )}
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </TouchableOpacity>
+      </Modal>
     </ScrollView>
   );
 }
@@ -412,5 +488,49 @@ const styles = StyleSheet.create({
     fontFamily: 'DMSans_400Regular',
     color: brand.orange,
     letterSpacing: 0.5,
+  },
+});
+
+const langStyles = StyleSheet.create({
+  overlay: {
+    flex: 1,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'flex-end',
+  },
+  sheet: {
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    borderTopWidth: 1,
+    paddingBottom: 32,
+    paddingHorizontal: 0,
+  },
+  handle: {
+    width: 36,
+    height: 4,
+    borderRadius: 2,
+    alignSelf: 'center',
+    marginTop: 12,
+    marginBottom: 16,
+  },
+  sheetTitle: {
+    fontFamily: 'Syne_700Bold',
+    fontSize: 16,
+    textAlign: 'center',
+    marginBottom: 12,
+    paddingHorizontal: 20,
+  },
+  langRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 24,
+    paddingVertical: 15,
+    borderBottomWidth: 1,
+    gap: 14,
+  },
+  flag: { fontSize: 24 },
+  langName: {
+    flex: 1,
+    fontFamily: 'DMSans_400Regular',
+    fontSize: 16,
   },
 });

@@ -60,11 +60,6 @@ export default function FiiMesterScreen() {
       createdAt: serverTimestamp(),
     };
 
-    console.log('[FiiMester] trimit la Firestore:', JSON.stringify({
-      ...payload,
-      createdAt: '<serverTimestamp>',
-    }, null, 2));
-
     setLoading(true);
     try {
       await addDoc(collection(db, 'mesteri_aplicatii'), payload);

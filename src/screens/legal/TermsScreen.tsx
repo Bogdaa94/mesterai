@@ -4,7 +4,7 @@ import LegalScreen, { LegalSection } from '../../components/LegalScreen';
 const SECTIONS: LegalSection[] = [
   // 1. Despre Mester AI
   { type: 'heading', text: '1. Despre Mester AI' },
-  { type: 'body', text: 'Mester AI („Aplicația", „Serviciul", „noi") este o platformă digitală de asistență pentru probleme de locuință, disponibilă pe iOS și Android, dezvoltată de [NUMELE TĂU / FIRMA TA], cu sediul în România.' },
+  { type: 'body', text: 'Mester AI („Aplicația", „Serviciul", „noi") este o platformă digitală de asistență pentru probleme de locuință, disponibilă pe iOS și Android, dezvoltată de Bogdan D., cu sediul în Brașov, România.' },
   { type: 'body', text: 'Mester AI folosește inteligență artificială (modelul Gemini de la Google) pentru a oferi recomandări informative în domeniile: instalații sanitare, electricitate, construcții, grădină și mobilă/tâmplărie.' },
   { type: 'warning', text: '⚠️ AVERTISMENT IMPORTANT: Recomandările generate de Mester AI au caracter strict informativ și orientativ. Ele nu înlocuiesc consultarea unui specialist autorizat (instalator, electrician ANRE, constructor autorizat etc.) și nu constituie sfaturi profesionale. Mester AI nu este responsabil pentru nicio daună materială, personală sau financiară rezultată din aplicarea recomandărilor fără verificarea unui profesionist.' },
 
@@ -40,7 +40,7 @@ const SECTIONS: LegalSection[] = [
     'Fără funcții vocale',
   ]},
   { type: 'subheading', text: '4.2 Planul Pro' },
-  { type: 'body', text: 'Prețuri curente: Lunar — 24,99 RON/lună | Anual — 224,99 RON/an (economisești 25%).' },
+  { type: 'body', text: 'Prețuri curente: Lunar — 45,99 RON/lună | Anual — 413,91 RON/an (economisești 25%).' },
   { type: 'body', text: 'Planul Pro include:' },
   { type: 'bullet', items: [
     'Conversații AI nelimitate',
@@ -129,7 +129,7 @@ const SECTIONS: LegalSection[] = [
   // 7. Proprietate intelectuală
   { type: 'heading', text: '7. Proprietate Intelectuală' },
   { type: 'bullet', items: [
-    'Aplicația, design-ul, logo-ul și conținutul editorial aparțin [NUMELE TĂU / FIRMA TA]',
+    'Aplicația, design-ul, logo-ul și conținutul editorial aparțin Bogdan D.',
     'Cele 75 de scenarii din baza de cunoștințe sunt proprietatea noastră',
     'Nu ai dreptul să copiezi, reproduci sau redistribui conținutul Aplicației',
   ]},
@@ -158,16 +158,16 @@ const SECTIONS: LegalSection[] = [
   { type: 'heading', text: '11. Contact' },
   { type: 'body', text: 'Email: contact@mesterai.ro' },
   { type: 'body', text: 'Website: mesterai.ro' },
-  { type: 'body', text: 'Adresă: [ADRESA TA], România' },
+  { type: 'body', text: 'Adresă: Brașov, România' },
   { type: 'spacer' },
-  { type: 'body', text: 'Versiunea 1.0 — [DATA LANSĂRII]' },
+  { type: 'body', text: 'Versiunea 1.0 — 2026' },
 ];
 
 export default function TermsScreen() {
   return (
     <LegalScreen
       title="Termeni și Condiții"
-      updatedAt="[DATA LANSĂRII]"
+      updatedAt="2026"
       sections={SECTIONS}
     />
   );

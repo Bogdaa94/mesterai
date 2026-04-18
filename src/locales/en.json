@@ -1,0 +1,125 @@
+{
+  "home": {
+    "greeting": "Good day 👋",
+    "title": "How can we help you today?",
+    "search": "Describe your problem...",
+    "categories": "CATEGORIES",
+    "lastActivity": "LAST ACTIVITY",
+    "newProblem": "+ New problem →",
+    "inProgress": "In progress",
+    "solved": "Solved"
+  },
+  "categories": {
+    "sanitare": "Plumbing",
+    "sanitareSub": "Faucets · Pipes · WC",
+    "electric": "Electrical",
+    "electricSub": "Outlets · Panels · LED",
+    "constructii": "Construction",
+    "constructiiSub": "Masonry · Insulation",
+    "gradina": "Garden",
+    "gradinaSub": "Irrigation · Landscaping",
+    "mobila": "Furniture",
+    "mobilaSub": "Assembly · Repairs"
+  },
+  "auth": {
+    "login": "Sign in",
+    "register": "Register",
+    "email": "Email",
+    "password": "Password",
+    "googleLogin": "Continue with Google",
+    "forgotPassword": "Forgot your password?"
+  },
+  "forum": {
+    "title": "Community Forum",
+    "subtitle": "Ask, answer, earn points",
+    "newPost": "Post a question",
+    "topVotes": "Top votes",
+    "recent": "Recent"
+  },
+  "mesteri": {
+    "title": "Craftsmen near you",
+    "filter": "Distance filter",
+    "contact": "Contact"
+  },
+  "paywall": {
+    "title": "Mester AI Pro",
+    "subtitle": "Everything about your home, fully solved",
+    "monthly": "Monthly",
+    "annual": "Annual",
+    "recommended": "Recommended",
+    "startPro": "Start Pro",
+    "restore": "Restore purchases",
+    "cancel": "Cancel anytime",
+    "flexible": "Flexible · cancel anytime",
+    "billedAnnually": "billed annually"
+  },
+  "profile": {
+    "title": "My profile",
+    "points": "My points",
+    "darkMode": "Dark Mode",
+    "language": "Language",
+    "logout": "Sign out",
+    "deleteAccount": "Delete account",
+    "privacy": "Privacy",
+    "terms": "Terms & Conditions",
+    "rateApp": "Rate the app",
+    "support": "Contact support",
+    "account": "Account",
+    "craftsmen": "Craftsmen",
+    "settings": "Settings",
+    "dangerZone": "Danger zone",
+    "notifications": "Notifications",
+    "beACraftsman": "Be a Craftsman",
+    "upgradeToPro": "Upgrade to Pro",
+    "problems": "Diagnosed problems",
+    "active": "Active",
+    "confirmLogout": "Are you sure you want to sign out?",
+    "confirmDelete": "This action is irreversible. All your data will be deleted.",
+    "deleteConfirmBtn": "Delete permanently",
+    "selectLanguage": "Select language",
+    "chooseLanguage": "Choose app language"
+  },
+  "diagnostic": {
+    "placeholder": "Describe your problem...",
+    "send": "Send",
+    "disclaimer": "AI-generated response — for guidance only",
+    "report": "Report response",
+    "addPhoto": "Add photo",
+    "camera": "Camera",
+    "gallery": "Gallery",
+    "cancel": "Cancel",
+    "photoLimit": "Limit reached",
+    "photoLimitMsg": "Free accounts allow {{limit}} photo per conversation. Upgrade to PRO for unlimited photos.",
+    "comingSoon": "Voice input coming soon! 🎤",
+    "messageTooLong": "Message exceeds {{max}} characters. Please shorten it.",
+    "greeting": "Hello! I'm here to help you with {{category}}. Describe your problem or send a photo and we'll solve it together! 👇",
+    "dailyLimit": "You've used {{count}}/{{limit}} free problems today",
+    "limitReached": "You've reached the limit of {{limit}} free problems today. Tap for Pro 💎",
+    "analyzePhoto": "Analyze the image and identify the problem."
+  },
+  "common": {
+    "back": "Back",
+    "save": "Save",
+    "cancel": "Cancel",
+    "confirm": "Confirm",
+    "loading": "Loading...",
+    "error": "Error",
+    "success": "Success",
+    "proOnly": "Available in Pro",
+    "ok": "OK"
+  },
+  "consent": {
+    "title": "Privacy & Consent",
+    "subtitle": "Read and accept to continue",
+    "accept": "Continue →",
+    "required": "Required"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "No notifications yet"
+  },
+  "history": {
+    "title": "History",
+    "empty": "No saved diagnostics"
+  }
+}

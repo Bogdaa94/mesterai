@@ -1,0 +1,125 @@
+{
+  "home": {
+    "greeting": "Bonjour 👋",
+    "title": "Comment pouvons-nous vous aider ?",
+    "search": "Décrivez votre problème...",
+    "categories": "CATÉGORIES",
+    "lastActivity": "DERNIÈRE ACTIVITÉ",
+    "newProblem": "+ Nouveau problème →",
+    "inProgress": "En cours",
+    "solved": "Résolu"
+  },
+  "categories": {
+    "sanitare": "Plomberie",
+    "sanitareSub": "Robinets · Tuyaux · WC",
+    "electric": "Électricité",
+    "electricSub": "Prises · Tableaux · LED",
+    "constructii": "Construction",
+    "constructiiSub": "Maçonnerie · Isolation",
+    "gradina": "Jardin",
+    "gradinaSub": "Irrigation · Paysagisme",
+    "mobila": "Mobilier",
+    "mobilaSub": "Montage · Réparations"
+  },
+  "auth": {
+    "login": "Se connecter",
+    "register": "S'inscrire",
+    "email": "Email",
+    "password": "Mot de passe",
+    "googleLogin": "Continuer avec Google",
+    "forgotPassword": "Mot de passe oublié ?"
+  },
+  "forum": {
+    "title": "Forum Communauté",
+    "subtitle": "Posez des questions, répondez, gagnez des points",
+    "newPost": "Poser une question",
+    "topVotes": "Meilleurs votes",
+    "recent": "Récents"
+  },
+  "mesteri": {
+    "title": "Artisans près de chez vous",
+    "filter": "Filtre distance",
+    "contact": "Contacter"
+  },
+  "paywall": {
+    "title": "Mester AI Pro",
+    "subtitle": "Tout sur votre maison, résolu complètement",
+    "monthly": "Mensuel",
+    "annual": "Annuel",
+    "recommended": "Recommandé",
+    "startPro": "Commencer Pro",
+    "restore": "Restaurer les achats",
+    "cancel": "Annulez à tout moment",
+    "flexible": "Flexible · annulez à tout moment",
+    "billedAnnually": "facturé annuellement"
+  },
+  "profile": {
+    "title": "Mon profil",
+    "points": "Mes points",
+    "darkMode": "Mode sombre",
+    "language": "Langue",
+    "logout": "Se déconnecter",
+    "deleteAccount": "Supprimer le compte",
+    "privacy": "Confidentialité",
+    "terms": "Conditions d'utilisation",
+    "rateApp": "Évaluer l'application",
+    "support": "Contacter le support",
+    "account": "Compte",
+    "craftsmen": "Artisans",
+    "settings": "Paramètres",
+    "dangerZone": "Zone dangereuse",
+    "notifications": "Notifications",
+    "beACraftsman": "Devenir artisan",
+    "upgradeToPro": "Passer à Pro",
+    "problems": "Problèmes diagnostiqués",
+    "active": "Actif",
+    "confirmLogout": "Êtes-vous sûr de vouloir vous déconnecter ?",
+    "confirmDelete": "Cette action est irréversible. Toutes vos données seront supprimées.",
+    "deleteConfirmBtn": "Supprimer définitivement",
+    "selectLanguage": "Sélectionner la langue",
+    "chooseLanguage": "Choisissez la langue de l'application"
+  },
+  "diagnostic": {
+    "placeholder": "Décrivez votre problème...",
+    "send": "Envoyer",
+    "disclaimer": "Réponse générée par IA — à titre indicatif",
+    "report": "Signaler la réponse",
+    "addPhoto": "Ajouter une photo",
+    "camera": "Appareil photo",
+    "gallery": "Galerie",
+    "cancel": "Annuler",
+    "photoLimit": "Limite atteinte",
+    "photoLimitMsg": "Les comptes Free permettent {{limit}} photo par conversation. Passez à PRO pour des photos illimitées.",
+    "comingSoon": "Saisie vocale bientôt disponible ! 🎤",
+    "messageTooLong": "Le message dépasse {{max}} caractères. Veuillez le raccourcir.",
+    "greeting": "Bonjour ! Je suis là pour vous aider avec {{category}}. Décrivez votre problème ou envoyez une photo et nous le résoudrons ensemble ! 👇",
+    "dailyLimit": "Vous avez utilisé {{count}}/{{limit}} problèmes gratuits aujourd'hui",
+    "limitReached": "Vous avez atteint la limite de {{limit}} problèmes gratuits aujourd'hui. Appuyez pour Pro 💎",
+    "analyzePhoto": "Analysez l'image et identifiez le problème."
+  },
+  "common": {
+    "back": "Retour",
+    "save": "Sauvegarder",
+    "cancel": "Annuler",
+    "confirm": "Confirmer",
+    "loading": "Chargement...",
+    "error": "Erreur",
+    "success": "Succès",
+    "proOnly": "Disponible dans Pro",
+    "ok": "OK"
+  },
+  "consent": {
+    "title": "Confidentialité & Consentement",
+    "subtitle": "Lisez et acceptez pour continuer",
+    "accept": "Continuer →",
+    "required": "Obligatoire"
+  },
+  "notifications": {
+    "title": "Notifications",
+    "empty": "Aucune notification pour le moment"
+  },
+  "history": {
+    "title": "Historique",
+    "empty": "Aucun diagnostic sauvegardé"
+  }
+}

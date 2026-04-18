@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   View,
   Text,
@@ -8,13 +8,17 @@ import {
   Linking,
   StyleSheet,
   Platform,
+  ActivityIndicator,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useNavigation } from '@react-navigation/native';
+import { PurchasesPackage } from 'react-native-purchases';
 
 import { useTheme } from '../context/ThemeContext';
+import { usePro } from '../context/ProContext';
 import { brand } from '../theme/colors';
+import { getOfferings, extractPlans } from '../services/revenuecat';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -25,59 +29,96 @@ interface Feature {
   text: string;
 }
 
-// ── Data ───────────────────────────────────────────────────────────────────────
+// ── Static data ────────────────────────────────────────────────────────────────
 
 const FEATURES: Feature[] = [
   { icon: '∞',  text: 'Conversații nelimitate cu AI' },
   { icon: '📸', text: 'Foto diagnostic multiplu + analiză detaliată' },
   { icon: '🎤', text: 'Input vocal' },
-  { icon: '🔧', text: 'Meșteri din zona ta cu filtru distanță' },
+  { icon: '🏘️', text: 'Meșteri din zona ta cu filtru distanță' },
   { icon: '💬', text: 'Forum comunitate complet' },
-  { icon: '📊', text: 'Raport Casa Mea' },
-  { icon: '⏰', text: 'Remindere întreținere' },
-  { icon: '💰', text: 'Calculator buget renovare' },
-  { icon: '📐', text: 'Scanare schițe apartament (Gemini Vision)' },
+  { icon: '🔔', text: 'Notificări pentru răspunsuri și activitate' },
 ];
 
-const PLANS = {
-  annual: {
-    label: 'Anual',
-    subtitle: '18,75 RON/lună · facturat anual',
-    price: '224,99 RON/an',
-    cta: 'Începe Pro · 224,99 RON/an',
-    discount: '-25%',
-    recommended: true,
-  },
-  monthly: {
-    label: 'Lunar',
-    subtitle: 'Flexibil · anulezi oricând',
-    price: '24,99 RON/lună',
-    cta: 'Începe Pro · 24,99 RON/lună',
-    discount: null,
-    recommended: false,
-  },
-} as const;
+// Prețuri fallback dacă RevenueCat nu e disponibil (Expo Go / dev)
+const FALLBACK_PRICES = {
+  annual:  { price: '413,91 RON/an',   monthly: '34,49 RON/lună' },
+  monthly: { price: '45,99 RON/lună',  monthly: null },
+};
 
 // ── Main screen ────────────────────────────────────────────────────────────────
 
 export default function PaywallScreen() {
-  const { colors } = useTheme();
-  const navigation = useNavigation();
-  const insets = useSafeAreaInsets();
+  const { colors }                                    = useTheme();
+  const { purchasePackage, restorePurchases, purchaseLoading } = usePro();
+  const navigation                                    = useNavigation();
+  const insets                                        = useSafeAreaInsets();
 
   const [selectedPlan, setSelectedPlan] = useState<Plan>('annual');
 
-  const activePlan = PLANS[selectedPlan];
+  // Pachete RevenueCat
+  const [monthlyPkg, setMonthlyPkg] = useState<PurchasesPackage | null>(null);
+  const [annualPkg,  setAnnualPkg]  = useState<PurchasesPackage | null>(null);
+  const [loadingOffers, setLoadingOffers] = useState(true);
 
-  const handleCTA = () => {
-    Alert.alert('Coming soon 🚀', 'RevenueCat va fi integrat în curând!');
+  // ── Fetch offerings ─────────────────────────────────────────────────────
+
+  useEffect(() => {
+    let cancelled = false;
+    getOfferings().then((offerings) => {
+      if (cancelled || !offerings) { setLoadingOffers(false); return; }
+      const { monthly, annual } = extractPlans(offerings);
+      setMonthlyPkg(monthly);
+      setAnnualPkg(annual);
+      setLoadingOffers(false);
+    });
+    return () => { cancelled = true; };
+  }, []);
+
+  // ── Derived prices (RevenueCat dacă disponibil, fallback static) ─────────
+
+  const annualPrice   = annualPkg?.product.priceString  ?? FALLBACK_PRICES.annual.price;
+  const monthlyPrice  = monthlyPkg?.product.priceString ?? FALLBACK_PRICES.monthly.price;
+
+  // Prețul afișat pe cardul de plan
+  const planDisplayPrice = selectedPlan === 'annual' ? annualPrice : monthlyPrice;
+
+  // Label CTA
+  const ctaLabel = selectedPlan === 'annual'
+    ? `Începe Pro · ${annualPrice}`
+    : `Începe Pro · ${monthlyPrice}`;
+
+  // Prețul de reînnoire pentru nota legală
+  const renewalPrice = selectedPlan === 'annual' ? annualPrice : monthlyPrice;
+
+  // ── Handlers ─────────────────────────────────────────────────────────────
+
+  const handleCTA = async () => {
+    const pkg = selectedPlan === 'annual' ? annualPkg : monthlyPkg;
+
+    if (!pkg) {
+      // RevenueCat nedisponibil (Expo Go sau keys lipsă)
+      Alert.alert(
+        'Indisponibil momentan',
+        'Achizițiile necesită un build de producție. Revino în curând!'
+      );
+      return;
+    }
+
+    const success = await purchasePackage(pkg);
+    if (success) navigation.goBack();
   };
 
-  const handleRestore = () => {
-    Alert.alert('Restaurare', 'RevenueCat va fi integrat în curând!');
+  const handleRestore = async () => {
+    const success = await restorePurchases();
+    if (success) navigation.goBack();
   };
 
   const openLink = (url: string) => Linking.openURL(url).catch(() => {});
+
+  const isBusy = purchaseLoading || loadingOffers;
+
+  // ── Render ────────────────────────────────────────────────────────────────
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bgPage }]}>
@@ -86,6 +127,7 @@ export default function PaywallScreen() {
         style={[styles.closeBtn, { top: insets.top + 12 }]}
         onPress={() => navigation.goBack()}
         hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+        disabled={purchaseLoading}
       >
         <Ionicons name="close" size={22} color={colors.textSecondary} />
       </TouchableOpacity>
@@ -126,41 +168,77 @@ export default function PaywallScreen() {
 
         {/* ── Plan selector ─────────────────────────────────────────────── */}
         <View style={styles.planRow}>
-          {(['annual', 'monthly'] as Plan[]).map(plan => {
-            const p = PLANS[plan];
-            const active = selectedPlan === plan;
-            return (
-              <TouchableOpacity
-                key={plan}
-                style={[
-                  styles.planCard,
-                  { backgroundColor: colors.bgCard, borderColor: active ? brand.orange : colors.border },
-                  active && styles.planCardActive,
-                ]}
-                onPress={() => setSelectedPlan(plan)}
-                activeOpacity={0.75}
-              >
-                {p.recommended && (
-                  <View style={styles.recommendedBadge}>
-                    <Text style={styles.recommendedText}>Recomandat</Text>
-                  </View>
-                )}
-                <Text style={[styles.planLabel, { color: colors.textPrimary }]}>{p.label}</Text>
-                <Text style={[styles.planSubtitle, { color: colors.textSecondary }]}>{p.subtitle}</Text>
-                <Text style={[styles.planPrice, { color: colors.textPrimary }]}>{p.price}</Text>
-                {p.discount && (
-                  <View style={styles.discountBadge}>
-                    <Text style={styles.discountText}>{p.discount}</Text>
-                  </View>
-                )}
-              </TouchableOpacity>
-            );
-          })}
+
+          {/* Card Anual */}
+          <TouchableOpacity
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.bgCard, borderColor: selectedPlan === 'annual' ? brand.orange : colors.border },
+              selectedPlan === 'annual' && styles.planCardActive,
+            ]}
+            onPress={() => setSelectedPlan('annual')}
+            activeOpacity={0.75}
+            disabled={isBusy}
+          >
+            <View style={styles.recommendedBadge}>
+              <Text style={styles.recommendedText}>Recomandat</Text>
+            </View>
+            <Text style={[styles.planLabel, { color: colors.textPrimary }]}>Anual</Text>
+            {loadingOffers ? (
+              <ActivityIndicator size="small" color={brand.orange} style={{ marginVertical: 4 }} />
+            ) : (
+              <>
+                <Text style={[styles.planSubtitle, { color: colors.textSecondary }]}>
+                  {annualPkg
+                    ? `~${formatMonthlyFromAnnual(annualPkg)} · facturat anual`
+                    : `~34,49 RON/lună · facturat anual`}
+                </Text>
+                <Text style={[styles.planPrice, { color: colors.textPrimary }]}>{annualPrice}</Text>
+              </>
+            )}
+            <View style={styles.discountBadge}>
+              <Text style={styles.discountText}>-25%</Text>
+            </View>
+          </TouchableOpacity>
+
+          {/* Card Lunar */}
+          <TouchableOpacity
+            style={[
+              styles.planCard,
+              { backgroundColor: colors.bgCard, borderColor: selectedPlan === 'monthly' ? brand.orange : colors.border },
+              selectedPlan === 'monthly' && styles.planCardActive,
+            ]}
+            onPress={() => setSelectedPlan('monthly')}
+            activeOpacity={0.75}
+            disabled={isBusy}
+          >
+            <Text style={[styles.planLabel, { color: colors.textPrimary }]}>Lunar</Text>
+            {loadingOffers ? (
+              <ActivityIndicator size="small" color={brand.orange} style={{ marginVertical: 4 }} />
+            ) : (
+              <>
+                <Text style={[styles.planSubtitle, { color: colors.textSecondary }]}>
+                  Flexibil · anulezi oricând
+                </Text>
+                <Text style={[styles.planPrice, { color: colors.textPrimary }]}>{monthlyPrice}</Text>
+              </>
+            )}
+          </TouchableOpacity>
+
         </View>
 
         {/* ── CTA ───────────────────────────────────────────────────────── */}
-        <TouchableOpacity style={styles.ctaBtn} onPress={handleCTA} activeOpacity={0.85}>
-          <Text style={styles.ctaText}>{activePlan.cta}</Text>
+        <TouchableOpacity
+          style={[styles.ctaBtn, isBusy && { opacity: 0.7 }]}
+          onPress={handleCTA}
+          activeOpacity={0.85}
+          disabled={isBusy}
+        >
+          {purchaseLoading ? (
+            <ActivityIndicator color="#fff" />
+          ) : (
+            <Text style={styles.ctaText}>{ctaLabel}</Text>
+          )}
         </TouchableOpacity>
 
         {/* ── Discount note ─────────────────────────────────────────────── */}
@@ -178,18 +256,25 @@ export default function PaywallScreen() {
         {/* ── Legal note ────────────────────────────────────────────────── */}
         <Text style={[styles.legal, { color: colors.textSecondary }]}>
           {selectedPlan === 'monthly'
-            ? 'Abonamentul lunar se reînnoiește automat la 24,99 RON/lună.'
-            : 'Abonamentul anual se reînnoiește automat la 224,99 RON/an.'}{'\n'}
-          Poți anula oricând din setările{' '}
-          {Platform.OS === 'ios' ? 'App Store' : 'Google Play'}{' '}
-          cu 24h înainte de reînnoire.
+            ? `Se reînnoiește automat la ${monthlyPrice === FALLBACK_PRICES.monthly.price ? '45,99 RON/lună' : monthlyPrice}.`
+            : `Se reînnoiește automat la ${annualPrice === FALLBACK_PRICES.annual.price ? '413,91 RON/an' : annualPrice}.`}
+          {'\n'}
+          {`Poți anula oricând din setările ${Platform.OS === 'ios' ? 'App Store' : 'Google Play'} cu 24h înainte de reînnoire.`}
         </Text>
 
         {/* ── Restore + links ───────────────────────────────────────────── */}
-        <TouchableOpacity onPress={handleRestore} style={styles.restoreBtn}>
-          <Text style={[styles.restoreText, { color: colors.textSecondary }]}>
-            Restaurează achizițiile
-          </Text>
+        <TouchableOpacity
+          onPress={handleRestore}
+          style={styles.restoreBtn}
+          disabled={isBusy}
+        >
+          {purchaseLoading ? (
+            <ActivityIndicator size="small" color={colors.textSecondary} />
+          ) : (
+            <Text style={[styles.restoreText, { color: colors.textSecondary }]}>
+              Restaurează achizițiile
+            </Text>
+          )}
         </TouchableOpacity>
 
         <View style={styles.linksRow}>
@@ -204,6 +289,18 @@ export default function PaywallScreen() {
       </ScrollView>
     </View>
   );
+}
+
+// ── Helpers ────────────────────────────────────────────────────────────────────
+
+/** Calculează prețul lunar echivalent dintr-un pachet anual. */
+function formatMonthlyFromAnnual(pkg: PurchasesPackage): string {
+  const annual = pkg.product.price;
+  if (!annual) return pkg.product.priceString;
+  const monthly = annual / 12;
+  // Folosim același simbol de monedă din priceString (ex: "RON")
+  const currency = pkg.product.currencyCode ?? 'RON';
+  return `${monthly.toFixed(2)} ${currency}/lună`;
 }
 
 // ── Styles ─────────────────────────────────────────────────────────────────────
@@ -223,7 +320,6 @@ const styles = StyleSheet.create({
 
   scroll: { paddingHorizontal: 20, alignItems: 'center' },
 
-  // PRO badge
   proBadge: {
     backgroundColor: brand.orange,
     borderRadius: 20,
@@ -238,7 +334,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.5,
   },
 
-  // Hero
   heroEmoji: { fontSize: 50, marginBottom: 12 },
   heroTitle: {
     fontFamily: 'Syne_700Bold',
@@ -254,7 +349,6 @@ const styles = StyleSheet.create({
     lineHeight: 22,
   },
 
-  // Features
   featuresCard: {
     width: '100%',
     borderRadius: 16,
@@ -278,7 +372,6 @@ const styles = StyleSheet.create({
   },
   featureSep: { height: 1, marginHorizontal: 16 },
 
-  // Plan selector
   planRow: {
     flexDirection: 'row',
     width: '100%',
@@ -292,6 +385,8 @@ const styles = StyleSheet.create({
     padding: 14,
     alignItems: 'center',
     gap: 4,
+    minHeight: 130,
+    justifyContent: 'center',
   },
   planCardActive: {
     shadowColor: brand.orange,
@@ -327,6 +422,7 @@ const styles = StyleSheet.create({
     fontFamily: 'Syne_700Bold',
     fontSize: 15,
     marginTop: 4,
+    textAlign: 'center',
   },
   discountBadge: {
     backgroundColor: 'rgba(255,107,0,0.15)',
@@ -342,7 +438,6 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
 
-  // CTA
   ctaBtn: {
     width: '100%',
     backgroundColor: brand.orange,
@@ -350,6 +445,8 @@ const styles = StyleSheet.create({
     paddingVertical: 16,
     alignItems: 'center',
     marginBottom: 16,
+    minHeight: 52,
+    justifyContent: 'center',
     shadowColor: brand.orange,
     shadowOffset: { width: 0, height: 6 },
     shadowOpacity: 0.35,
@@ -363,7 +460,6 @@ const styles = StyleSheet.create({
     letterSpacing: 0.3,
   },
 
-  // Discount note
   discountNote: {
     width: '100%',
     borderRadius: 12,
@@ -382,7 +478,6 @@ const styles = StyleSheet.create({
     lineHeight: 19,
   },
 
-  // Legal
   legal: {
     fontFamily: 'DMSans_400Regular',
     fontSize: 11,
@@ -392,19 +487,19 @@ const styles = StyleSheet.create({
     paddingHorizontal: 8,
   },
 
-  // Restore + links
-  restoreBtn: { marginBottom: 12 },
+  restoreBtn: { marginBottom: 12, minHeight: 20, justifyContent: 'center' },
   restoreText: {
     fontFamily: 'DMSans_400Regular',
     fontSize: 13,
     textDecorationLine: 'underline',
   },
+
   linksRow: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
   },
-  linkDot: { fontSize: 13 },
+  linkDot:  { fontSize: 13 },
   linkText: {
     fontFamily: 'DMSans_400Regular',
     fontSize: 12,

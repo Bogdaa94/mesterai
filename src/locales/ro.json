@@ -1,0 +1,125 @@
+{
+  "home": {
+    "greeting": "Bună ziua 👋",
+    "title": "Cu ce te ajutăm azi?",
+    "search": "Descrie problema ta...",
+    "categories": "CATEGORII",
+    "lastActivity": "ULTIMA ACTIVITATE",
+    "newProblem": "+ Problemă nouă →",
+    "inProgress": "În progres",
+    "solved": "Rezolvat"
+  },
+  "categories": {
+    "sanitare": "Sanitare",
+    "sanitareSub": "Robinete · Țevi · WC",
+    "electric": "Electric",
+    "electricSub": "Prize · Tablouri · LED",
+    "constructii": "Construcții",
+    "constructiiSub": "Zidărie · Izolații",
+    "gradina": "Grădină",
+    "gradinaSub": "Irigații · Peisagistică",
+    "mobila": "Mobilă",
+    "mobilaSub": "Montaj · Reparații"
+  },
+  "auth": {
+    "login": "Conectează-te",
+    "register": "Înregistrează-te",
+    "email": "Email",
+    "password": "Parolă",
+    "googleLogin": "Continuă cu Google",
+    "forgotPassword": "Ai uitat parola?"
+  },
+  "forum": {
+    "title": "Forum Comunitate",
+    "subtitle": "Întreabă, răspunde, câștigă puncte",
+    "newPost": "Postează o întrebare",
+    "topVotes": "Top voturi",
+    "recent": "Recente"
+  },
+  "mesteri": {
+    "title": "Meșteri din zona ta",
+    "filter": "Filtru distanță",
+    "contact": "Contactează"
+  },
+  "paywall": {
+    "title": "Mester AI Pro",
+    "subtitle": "Totul despre casa ta, rezolvat complet",
+    "monthly": "Lunar",
+    "annual": "Anual",
+    "recommended": "Recomandat",
+    "startPro": "Începe Pro",
+    "restore": "Restaurează achizițiile",
+    "cancel": "Anulezi oricând",
+    "flexible": "Flexibil · anulezi oricând",
+    "billedAnnually": "facturat anual"
+  },
+  "profile": {
+    "title": "Profilul meu",
+    "points": "Punctele mele",
+    "darkMode": "Dark Mode",
+    "language": "Limbă",
+    "logout": "Deconectează-te",
+    "deleteAccount": "Șterge contul",
+    "privacy": "Confidențialitate",
+    "terms": "Termeni și condiții",
+    "rateApp": "Evaluează aplicația",
+    "support": "Contact suport",
+    "account": "Cont",
+    "craftsmen": "Meșteri",
+    "settings": "Setări",
+    "dangerZone": "Zona periculoasă",
+    "notifications": "Notificări",
+    "beACraftsman": "Fii Meșter",
+    "upgradeToPro": "Upgrade la Pro",
+    "problems": "Probleme diagnosticate",
+    "active": "Activ",
+    "confirmLogout": "Ești sigur că vrei să te deconectezi?",
+    "confirmDelete": "Această acțiune este ireversibilă. Toate datele tale vor fi șterse.",
+    "deleteConfirmBtn": "Șterge definitiv",
+    "selectLanguage": "Selectează limba",
+    "chooseLanguage": "Alege limba aplicației"
+  },
+  "diagnostic": {
+    "placeholder": "Descrie problema ta...",
+    "send": "Trimite",
+    "disclaimer": "Răspuns generat de AI — orientativ",
+    "report": "Raportează răspunsul",
+    "addPhoto": "Adaugă poză",
+    "camera": "Cameră",
+    "gallery": "Galerie",
+    "cancel": "Anulează",
+    "photoLimit": "Limită atinsă",
+    "photoLimitMsg": "Contul Free permite {{limit}} poză per conversație. Fă upgrade la PRO pentru poze nelimitate.",
+    "comingSoon": "Inputul vocal va fi disponibil în curând! 🎤",
+    "messageTooLong": "Mesajul depășește {{max}} de caractere. Te rog scurtează-l.",
+    "greeting": "Bună! Sunt aici să te ajut cu {{category}}. Descrie-mi problema sau trimite o poză și rezolvăm împreună! 👇",
+    "dailyLimit": "Ai folosit {{count}}/{{limit}} probleme gratuite azi",
+    "limitReached": "Ai atins limita de {{limit}} probleme gratuite azi. Apasă pentru Pro 💎",
+    "analyzePhoto": "Analizează imaginea și identifică problema."
+  },
+  "common": {
+    "back": "Înapoi",
+    "save": "Salvează",
+    "cancel": "Anulează",
+    "confirm": "Confirmă",
+    "loading": "Se încarcă...",
+    "error": "Eroare",
+    "success": "Succes",
+    "proOnly": "Disponibil în Pro",
+    "ok": "OK"
+  },
+  "consent": {
+    "title": "Confidențialitate & Consimțământ",
+    "subtitle": "Citește și acceptă pentru a continua",
+    "accept": "Continuă →",
+    "required": "Obligatoriu"
+  },
+  "notifications": {
+    "title": "Notificări",
+    "empty": "Nicio notificare momentan"
+  },
+  "history": {
+    "title": "Istoric",
+    "empty": "Niciun diagnostic salvat"
+  }
+}

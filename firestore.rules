@@ -1,0 +1,247 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // HELPERS
+    // ──────────────────────────────────────────────────────────────────────────
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isUser(uid) {
+      return isSignedIn() && request.auth.uid == uid;
+    }
+
+    // Cheile modificate față de documentul existent
+    function changedKeys() {
+      return request.resource.data.diff(resource.data).affectedKeys();
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // USERS  /users/{userId}
+    //
+    // • Citire: doar proprietarul
+    // • Creare: proprietarul, cu points=0 și pointsHistory=[]
+    // • Actualizare: proprietarul, dar NU poate atinge points / pointsHistory
+    //   (acestea se modifică DOAR prin Cloud Functions / Admin SDK)
+    // • Ștergere: proprietarul (GDPR — deleteAccount)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /users/{userId} {
+
+      allow read: if isUser(userId);
+
+      allow create: if isUser(userId)
+        && request.resource.data.get('points', 0)        == 0
+        && request.resource.data.get('pointsHistory', []) == [];
+
+      allow update: if isUser(userId)
+        && !changedKeys().hasAny(['points', 'pointsHistory']);
+
+      allow delete: if isUser(userId);
+
+      // ── /users/{userId}/problems/{problemId} ─────────────────────────────
+
+      match /problems/{problemId} {
+        allow read, write, delete: if isUser(userId);
+      }
+
+      // ── /users/{userId}/preferences/{doc} ───────────────────────────────
+
+      match /preferences/{doc} {
+        allow read, write: if isUser(userId);
+      }
+
+      // ── /users/{userId}/compliance/{doc} ────────────────────────────────
+
+      match /compliance/{doc} {
+        allow read, write: if isUser(userId);
+      }
+
+      // ── /users/{userId}/notifications/{notifId} ──────────────────────────
+      // Creare: doar Cloud Functions (Admin SDK) — clientul nu poate scrie
+      // Citire / actualizare (read: true): doar proprietarul
+      // Ștergere: proprietarul
+
+      match /notifications/{notifId} {
+        allow read, update: if isUser(userId);
+        allow create:       if false;
+        allow delete:       if isUser(userId);
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // DAILY LIMITS  /daily_limits/{userId}/limits/{date}
+    //
+    // • Citire: doar proprietarul
+    // • Creare: count trebuie să înceapă de la 1
+    // • Actualizare: count poate crește cu exact 1 per operație
+    // • Ștergere: nimeni
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /daily_limits/{userId}/limits/{date} {
+      allow read: if isUser(userId);
+
+      allow create: if isUser(userId)
+        && request.resource.data.count == 1;
+
+      allow update: if isUser(userId)
+        && changedKeys().hasOnly(['count', 'updatedAt'])
+        && request.resource.data.count == resource.data.count + 1;
+
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // FORUM POSTS  /forum_posts/{postId}
+    //
+    // • Citire: orice user autentificat
+    // • Creare: user autentificat, câmpuri sanitizate la valori inițiale
+    // • Actualizare — trei scenarii distincte:
+    //     1. Autorul: modifică title / content / resolved, NU votes/votedBy/userId
+    //     2. Vot: orice user autentificat — votes +1, votedBy +uid, o singură dată
+    //     3. Comment: orice user autentificat — commentsCount +1
+    // • Ștergere: doar autorul
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /forum_posts/{postId} {
+
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId       == request.auth.uid
+        && request.resource.data.votes        == 0
+        && request.resource.data.votedBy      == []
+        && request.resource.data.commentsCount == 0
+        && request.resource.data.resolved     == false
+        && request.resource.data.addedToRAG   == false;
+
+      allow update: if isSignedIn() && (
+
+        // 1) Autorul modifică conținut (title, content, resolved)
+        (resource.data.userId == request.auth.uid
+          && !changedKeys().hasAny(['votes', 'votedBy', 'userId',
+                                    'commentsCount', 'addedToRAG']))
+
+        ||
+
+        // 2) Vot: votes crește cu 1, votedBy crește cu uid-ul votantului,
+        //    votantul nu era deja în lista votedBy
+        (changedKeys().hasOnly(['votes', 'votedBy'])
+          && request.resource.data.votes == resource.data.votes + 1
+          && request.resource.data.votedBy.size() == resource.data.votedBy.size() + 1
+          && request.resource.data.votedBy.hasAll(resource.data.votedBy)
+          && request.resource.data.votedBy.hasAny([request.auth.uid])
+          && !resource.data.votedBy.hasAny([request.auth.uid]))
+
+        ||
+
+        // 3) Adăugare comentariu: commentsCount crește cu exact 1
+        (changedKeys().hasOnly(['commentsCount'])
+          && request.resource.data.commentsCount == resource.data.commentsCount + 1)
+      );
+
+      allow delete: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+
+      // ── /forum_posts/{postId}/comments/{commentId} ───────────────────────
+
+      match /comments/{commentId} {
+        allow read: if isSignedIn();
+
+        allow create: if isSignedIn()
+          && request.resource.data.userId == request.auth.uid
+          && request.resource.data.content is string
+          && request.resource.data.content.size() > 0
+          && request.resource.data.content.size() <= 600;
+
+        allow delete: if isSignedIn()
+          && resource.data.userId == request.auth.uid;
+
+        allow update: if false; // comentariile nu se pot edita
+      }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // FORUM STATS  /forum_stats/{doc}
+    //
+    // • Citire: orice user autentificat
+    // • Scriere: nimeni din client — doar Cloud Functions / Admin SDK
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /forum_stats/{doc} {
+      allow read:  if isSignedIn();
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // MEȘTERI APLICAȚII  /mesteri_aplicatii/{docId}
+    //
+    // • Citire: orice user autentificat (MesteriScreen)
+    // • Creare: user autentificat, propria aplicație, status='active',
+    //   feedbackNegativ=0, avertismente=0
+    // • Actualizare: proprietarul poate modifica câmpurile de profil,
+    //   dar NU status / feedbackNegativ / avertismente (modificate doar de admin)
+    // • Ștergere: nimeni din client
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /mesteri_aplicatii/{docId} {
+      allow read: if isSignedIn();
+
+      allow create: if isSignedIn()
+        && request.resource.data.userId          == request.auth.uid
+        && request.resource.data.status          == 'active'
+        && request.resource.data.feedbackNegativ == 0
+        && request.resource.data.avertismente    == 0;
+
+      allow update: if isSignedIn()
+        && resource.data.userId == request.auth.uid
+        && !changedKeys().hasAny(['status', 'feedbackNegativ', 'avertismente', 'userId']);
+
+      allow delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RAPOARTE MEȘTERI  /rapoarte_mesteri/{reportId}
+    //
+    // • Creare: user Pro autentificat (verificat în client înainte de apel)
+    // • Citire / actualizare / ștergere: nimeni din client (admin only)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /rapoarte_mesteri/{reportId} {
+      allow create: if isSignedIn()
+        && request.resource.data.reporterUserId == request.auth.uid;
+
+      allow read, update, delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // RAG KNOWLEDGE  /rag_knowledge/{category}/{document=**}
+    //
+    // • Citire: orice user autentificat (DiagnosticScreen)
+    // • Scriere: nimeni din client — doar ragUpload.ts cu Admin SDK
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /rag_knowledge/{category}/{document=**} {
+      allow read:  if isSignedIn();
+      allow write: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // REPORTS  /reports/{reportId}
+    //
+    // • Creare: user autentificat, reportedBy = uid propriu
+    // • Citire / actualizare / ștergere: nimeni din client (admin only)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /reports/{reportId} {
+      allow create: if isSignedIn()
+        && request.resource.data.reportedBy == request.auth.uid;
+
+      allow read, update, delete: if false;
+    }
+
+  }
+}

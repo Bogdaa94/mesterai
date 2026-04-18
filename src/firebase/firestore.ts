@@ -7,6 +7,8 @@ import {
   getDocs,
   deleteDoc,
   collection,
+  query,
+  where,
   serverTimestamp,
   increment,
   Timestamp,
@@ -209,23 +211,90 @@ export async function incrementDailyLimit(userId: string): Promise<void> {
   }, { merge: true });
 }
 
+// ─── Forum Rate Limits ────────────────────────────────────────────────────────
+// Structură: /daily_limits/{userId}/forum/{YYYY-MM-DD}
+// { posts: number, comments: number, updatedAt: Timestamp }
+
+const FORUM_DAILY_POST_LIMIT    = 3;
+const FORUM_DAILY_COMMENT_LIMIT = 10;
+
+export async function checkForumPostLimit(
+  userId: string
+): Promise<{ count: number; hasReachedLimit: boolean }> {
+  const today = todayKey();
+  const ref   = doc(db, 'daily_limits', userId, 'forum', today);
+  const snap  = await getDoc(ref);
+  const count = snap.exists() ? (snap.data().posts ?? 0) : 0;
+  return { count, hasReachedLimit: count >= FORUM_DAILY_POST_LIMIT };
+}
+
+export async function incrementForumPostCount(userId: string): Promise<void> {
+  const today = todayKey();
+  const ref   = doc(db, 'daily_limits', userId, 'forum', today);
+  await setDoc(ref, {
+    posts:     increment(1),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
+export async function checkForumCommentLimit(
+  userId: string
+): Promise<{ count: number; hasReachedLimit: boolean }> {
+  const today = todayKey();
+  const ref   = doc(db, 'daily_limits', userId, 'forum', today);
+  const snap  = await getDoc(ref);
+  const count = snap.exists() ? (snap.data().comments ?? 0) : 0;
+  return { count, hasReachedLimit: count >= FORUM_DAILY_COMMENT_LIMIT };
+}
+
+export async function incrementForumCommentCount(userId: string): Promise<void> {
+  const today = todayKey();
+  const ref   = doc(db, 'daily_limits', userId, 'forum', today);
+  await setDoc(ref, {
+    comments:  increment(1),
+    updatedAt: serverTimestamp(),
+  }, { merge: true });
+}
+
 // ─── Delete Account ───────────────────────────────────────────────────────────
 
 export async function deleteUserData(userId: string): Promise<void> {
-  // Șterge subcollecțiile cunoscute
-  const subcollections = [
+  // 1. Subcollecțiile din /users/{userId}
+  //    pointsHistory este câmp pe documentul principal — dispare odată cu el.
+  const userSubcollections = [
+    collection(db, 'users', userId, 'problems'),
     collection(db, 'users', userId, 'preferences'),
     collection(db, 'users', userId, 'compliance'),
-    collection(db, 'users', userId, 'problems'),
   ];
-
-  for (const colRef of subcollections) {
+  for (const colRef of userSubcollections) {
     const snap = await getDocs(colRef);
-    await Promise.all(snap.docs.map(d => deleteDoc(d.ref)));
+    await Promise.all(snap.docs.map((d) => deleteDoc(d.ref)));
   }
 
-  // Șterge documentul principal
+  // 2. Documentul principal /users/{userId}
+  //    (include câmpurile points și pointsHistory)
   await deleteDoc(doc(db, 'users', userId));
+
+  // 3. Daily limits: /daily_limits/{userId}/limits/{date}
+  const limitsSnap = await getDocs(
+    collection(db, 'daily_limits', userId, 'limits')
+  );
+  await Promise.all(limitsSnap.docs.map((d) => deleteDoc(d.ref)));
+  // Documentul-container /daily_limits/{userId} (poate fi implicit/gol)
+  await deleteDoc(doc(db, 'daily_limits', userId)).catch(() => {});
+
+  // 4. Forum posts ale utilizatorului + subcollecția de comentarii din fiecare
+  const postsSnap = await getDocs(
+    query(collection(db, 'forum_posts'), where('userId', '==', userId))
+  );
+  for (const postDoc of postsSnap.docs) {
+    // Șterge comentariile postului înainte de post (Firestore nu cascadează)
+    const commentsSnap = await getDocs(
+      collection(db, 'forum_posts', postDoc.id, 'comments')
+    );
+    await Promise.all(commentsSnap.docs.map((c) => deleteDoc(c.ref)));
+    await deleteDoc(postDoc.ref);
+  }
 }
 
 // ─── Reports ──────────────────────────────────────────────────────────────────
