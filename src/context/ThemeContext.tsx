@@ -35,8 +35,7 @@ export function ThemeProvider({ children }: { children: React.ReactNode }) {
 
   const colors = mode === 'dark' ? dark : light;
 
-  // Nu randăm nimic până nu știm tema salvată — evităm flash-ul de culoare
-  if (!loaded) return null;
+  // Randăm imediat cu tema default (dark) — loaded actualizează când AsyncStorage răspunde
 
   return (
     <ThemeContext.Provider value={{ mode, colors, toggleTheme }}>

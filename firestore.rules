@@ -218,6 +218,44 @@ service cloud.firestore {
     }
 
     // ──────────────────────────────────────────────────────────────────────────
+    // RATINGS  /ratings/{ratingId}
+    //
+    // • Creare: user autentificat, userId = propriu uid, rating între 1 și 5
+    // • Citire: orice user autentificat (pentru checkAlreadyRated)
+    // • Actualizare / ștergere: nimeni din client (Cloud Functions only)
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /ratings/{ratingId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid
+        && request.resource.data.rating is int
+        && request.resource.data.rating >= 1
+        && request.resource.data.rating <= 5;
+
+      allow read:          if isSignedIn();
+      allow update, delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // CONTACT EVENTS  /contact_events/{eventId}
+    //
+    // • Creare: user autentificat, userId = propriu uid
+    // • Citire: doar proprietarul (getUserContactedMesters)
+    // • Actualizare: Cloud Functions (notificationSent) — blocat din client
+    // • Ștergere: nimeni
+    // ──────────────────────────────────────────────────────────────────────────
+
+    match /contact_events/{eventId} {
+      allow create: if isSignedIn()
+        && request.resource.data.userId == request.auth.uid;
+
+      allow read: if isSignedIn()
+        && resource.data.userId == request.auth.uid;
+
+      allow update, delete: if false;
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
     // RAG KNOWLEDGE  /rag_knowledge/{category}/{document=**}
     //
     // • Citire: orice user autentificat (DiagnosticScreen)

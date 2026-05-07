@@ -32,6 +32,8 @@ import { useAuth } from '../context/AuthContext';
 import { brand, categories } from '../theme/colors';
 import { RootStackParamList } from '../navigation/AppNavigator';
 import { db } from '../firebase/config';
+import { saveContactEvent, getUserContactedMesters } from '../firebase/firestore';
+import RatingModal from '../components/RatingModal';
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -57,6 +59,8 @@ interface MesteriDoc {
   avertismente?:    number;
   rating?:          number;
   reviewCount?:     number;
+  totalRatings?:    number;
+  badge?:           'nou' | 'verificat' | 'top';
   lat?:             number;
   lng?:             number;
   createdAt?:       Timestamp;
@@ -99,6 +103,29 @@ const CATEGORIE_TO_KEY: Record<string, CategoryKey> = {
 
 const RADIUS_OPTIONS: RadiusOption[] = [5, 10, 25, 50];
 
+// ── Badge config ───────────────────────────────────────────────────────────────
+
+const BADGE_ORDER: Record<string, number> = { top: 0, verificat: 1, nou: 2 };
+
+const BADGE_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
+  top:      { label: '🏆 Top Meșter', color: '#B8860B', bg: 'rgba(184,134,11,0.10)' },
+  verificat:{ label: '✅ Verificat',  color: '#2E7D32', bg: 'rgba(46,125,50,0.10)'  },
+  nou:      { label: '🆕 Nou',        color: '#1565C0', bg: 'rgba(21,101,192,0.10)' },
+};
+
+function sortByBadgeRatingDistance(a: MesterDisplay, b: MesterDisplay): number {
+  const ba = BADGE_ORDER[a.badge ?? 'nou'] ?? 2;
+  const bb = BADGE_ORDER[b.badge ?? 'nou'] ?? 2;
+  if (ba !== bb) return ba - bb;
+  const ra = a.rating ?? 0;
+  const rb = b.rating ?? 0;
+  if (ra !== rb) return rb - ra;
+  if (a.computedKm !== null && b.computedKm !== null) return a.computedKm - b.computedKm;
+  if (a.computedKm !== null) return -1;
+  if (b.computedKm !== null) return 1;
+  return a.displayLoc.localeCompare(b.displayLoc);
+}
+
 const REPORT_REASONS = [
   'Informații false sau înșelătoare',
   'Comportament neprofesionist',
@@ -136,12 +163,14 @@ interface MesterCardProps {
   mester:         MesterDisplay;
   locationActive: boolean;
   isPro:          boolean;
+  hasContacted:   boolean;
   onWhatsApp:     (m: MesterDisplay) => void;
   onReport:       (m: MesterDisplay) => void;
+  onRate:         (m: MesterDisplay) => void;
   colors:         any;
 }
 
-function MesterCard({ mester, locationActive, isPro, onWhatsApp, onReport, colors }: MesterCardProps) {
+function MesterCard({ mester, locationActive, isPro, hasContacted, onWhatsApp, onReport, onRate, colors }: MesterCardProps) {
   const catColors = categories[mester.categoryKey];
   const initial   = mester.displayName.charAt(0).toUpperCase();
   const hasWarning = (mester.feedbackNegativ ?? 0) >= 1;
@@ -155,6 +184,15 @@ function MesterCard({ mester, locationActive, isPro, onWhatsApp, onReport, color
 
   return (
     <View style={[cardStyles.card, { backgroundColor: colors.bgCard, borderColor: colors.border }]}>
+      {/* Badge meșter */}
+      {!!mester.badge && (
+        <View style={[cardStyles.badgePill, { backgroundColor: BADGE_CONFIG[mester.badge]?.bg }]}>
+          <Text style={[cardStyles.badgeText, { color: BADGE_CONFIG[mester.badge]?.color }]}>
+            {BADGE_CONFIG[mester.badge]?.label}
+          </Text>
+        </View>
+      )}
+
       {/* Warning badge */}
       {hasWarning && (
         <View style={cardStyles.warningBanner}>
@@ -219,6 +257,17 @@ function MesterCard({ mester, locationActive, isPro, onWhatsApp, onReport, color
             </>
           )}
         </TouchableOpacity>
+
+        {isPro && hasContacted && (
+          <TouchableOpacity
+            style={[cardStyles.rateBtn, { borderColor: '#F9A825' }]}
+            onPress={() => onRate(mester)}
+            activeOpacity={0.7}
+            hitSlop={{ top: 4, bottom: 4, left: 4, right: 4 }}
+          >
+            <Ionicons name="star-outline" size={15} color="#F9A825" />
+          </TouchableOpacity>
+        )}
 
         {isPro && (
           <TouchableOpacity
@@ -305,6 +354,24 @@ const cardStyles = StyleSheet.create({
     borderWidth: 1,
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  rateBtn: {
+    width: 38,
+    height: 38,
+    borderRadius: 10,
+    borderWidth: 1,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  badgePill: {
+    alignSelf: 'flex-start',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+  },
+  badgeText: {
+    fontFamily: 'DMSans_500Medium',
+    fontSize: 11,
   },
 });
 
@@ -484,7 +551,9 @@ export default function MesteriScreen() {
   const [locationLoading, setLocationLoading] = useState(false);
   const locationActive = userCoords !== null;
 
-  const [reportTarget, setReportTarget] = useState<MesterDisplay | null>(null);
+  const [reportTarget, setReportTarget]       = useState<MesterDisplay | null>(null);
+  const [ratingTarget, setRatingTarget]       = useState<MesterDisplay | null>(null);
+  const [contactedMesters, setContactedMesters] = useState<Set<string>>(new Set());
 
   // ── Firestore: onSnapshot — status in ['active', 'approved'] ─────────────
 
@@ -506,6 +575,13 @@ export default function MesteriScreen() {
 
     return unsub;
   }, []);
+
+  // ── Încarcă meșterii contactați de user ──────────────────────────────────
+
+  useEffect(() => {
+    if (!user?.uid) return;
+    getUserContactedMesters(user.uid).then(setContactedMesters).catch(() => {});
+  }, [user?.uid]);
 
   // ── Calcul distanțe + normalizare câmpuri ────────────────────────────────
 
@@ -531,15 +607,15 @@ export default function MesteriScreen() {
 
   const withDistance    = mesteriDisplay
     .filter((m) => m.computedKm !== null && m.computedKm <= selectedRadius)
-    .sort((a, b) => a.computedKm! - b.computedKm!);
+    .sort(sortByBadgeRatingDistance);
 
   const withoutDistance = mesteriDisplay
     .filter((m) => m.computedKm === null)
-    .sort((a, b) => a.displayLoc.localeCompare(b.displayLoc));
+    .sort(sortByBadgeRatingDistance);
 
   const filtered = locationActive
     ? [...withDistance, ...withoutDistance]
-    : mesteriDisplay.slice().sort((a, b) => a.displayLoc.localeCompare(b.displayLoc));
+    : mesteriDisplay.slice().sort(sortByBadgeRatingDistance);
 
   // ── Handlers ──────────────────────────────────────────────────────────────
 
@@ -574,6 +650,12 @@ export default function MesteriScreen() {
     Linking.openURL(url).catch(() =>
       Alert.alert('WhatsApp', 'Nu s-a putut deschide WhatsApp. Verifică dacă e instalat.')
     );
+    // Înregistrează contactarea pentru rating reminder
+    if (user?.uid) {
+      saveContactEvent(user.uid, mester.id, mester.userId).then(() => {
+        setContactedMesters((prev) => new Set([...prev, mester.id]));
+      }).catch(() => {});
+    }
   };
 
   const handleRadiusPress = (r: RadiusOption) => {
@@ -688,8 +770,10 @@ export default function MesteriScreen() {
                 mester={mester}
                 locationActive={locationActive}
                 isPro={isPro}
+                hasContacted={contactedMesters.has(mester.id)}
                 onWhatsApp={handleWhatsApp}
                 onReport={setReportTarget}
+                onRate={setRatingTarget}
                 colors={colors}
               />
             ))
@@ -705,6 +789,22 @@ export default function MesteriScreen() {
         userId={user?.uid ?? ''}
         colors={colors}
       />
+
+      {/* Rating Modal */}
+      {ratingTarget && (
+        <RatingModal
+          visible={ratingTarget !== null}
+          mesterId={ratingTarget.id}
+          mesterUserId={ratingTarget.userId}
+          mesterName={ratingTarget.displayName}
+          userId={user?.uid ?? ''}
+          onClose={() => setRatingTarget(null)}
+          onSuccess={() => {
+            setRatingTarget(null);
+            Alert.alert('Mulțumim!', 'Ratingul tău a fost înregistrat și ajută comunitatea.');
+          }}
+        />
+      )}
     </View>
   );
 }

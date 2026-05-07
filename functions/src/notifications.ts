@@ -201,3 +201,111 @@ export const onProActivated = functions.firestore
       );
     }
   });
+
+// ── RATING — recalculare medie + notificare meșter ────────────────────────────
+
+export const onNewRating = functions.firestore
+  .document('ratings/{ratingId}')
+  .onCreate(async (snap) => {
+    const rating = snap.data();
+
+    // Recalculează media din toate ratingurile meșterului
+    const ratingsSnap = await db
+      .collection('ratings')
+      .where('mesterId', '==', rating.mesterId)
+      .get();
+
+    const totalRatings = ratingsSnap.size;
+    const sumRating    = ratingsSnap.docs.reduce(
+      (sum, d) => sum + (d.data().rating as number), 0
+    );
+    const avgRating = totalRatings > 0 ? sumRating / totalRatings : 0;
+
+    // Determină badge-ul pe baza numărului și calității ratingurilor
+    let badge: 'nou' | 'verificat' | 'top';
+    if (totalRatings >= 10 && avgRating >= 4.5) {
+      badge = 'top';
+    } else if (totalRatings >= 3) {
+      badge = 'verificat';
+    } else {
+      badge = 'nou';
+    }
+
+    // Actualizează documentul meșterului
+    const mesterSnap = await db
+      .collection('mesteri_aplicatii')
+      .where('userId', '==', rating.mesterUserId)
+      .limit(1)
+      .get();
+
+    if (!mesterSnap.empty) {
+      await mesterSnap.docs[0].ref.update({
+        rating:       Math.round(avgRating * 10) / 10,
+        reviewCount:  totalRatings,
+        totalRatings,
+        badge,
+      });
+    }
+
+    // Notifică meșterul
+    const commentPart = (rating.comment as string | undefined)
+      ? ` "${(rating.comment as string).slice(0, 60)}"`
+      : '';
+    await sendPushNotification(
+      rating.mesterUserId as string,
+      '⭐ Rating nou!',
+      `Ai primit ${rating.rating as number}/5 stele.${commentPart}`,
+      { screen: 'Mesteri' }
+    );
+  });
+
+// ── RATING — reminder 24h după contact fără rating ───────────────────────────
+
+export const checkRatingReminders = functions.pubsub
+  .schedule('0 */2 * * *')
+  .timeZone('Europe/Bucharest')
+  .onRun(async () => {
+    const now     = new Date();
+    const cutoff  = new Date(now.getTime() - 24 * 60 * 60 * 1000); // 24h ago
+    const earliest = new Date(now.getTime() - 72 * 60 * 60 * 1000); // nu mai vechi de 72h
+
+    const contactsSnap = await db
+      .collection('contact_events')
+      .where('notificationSent', '==', false)
+      .where('contactedAt', '<=', admin.firestore.Timestamp.fromDate(cutoff))
+      .where('contactedAt', '>=', admin.firestore.Timestamp.fromDate(earliest))
+      .get();
+
+    for (const contactDoc of contactsSnap.docs) {
+      const contact = contactDoc.data();
+
+      // Verifică dacă userul a lăsat deja rating
+      const ratingSnap = await db
+        .collection('ratings')
+        .where('userId',   '==', contact.userId)
+        .where('mesterId', '==', contact.mesterId)
+        .limit(1)
+        .get();
+
+      // Marchează ca procesat indiferent de rezultat
+      await contactDoc.ref.update({ notificationSent: true });
+
+      if (!ratingSnap.empty) continue; // a lăsat deja rating
+
+      // Obține numele meșterului
+      const mesterSnap = await db
+        .collection('mesteri_aplicatii')
+        .where('userId', '==', contact.mesterUserId)
+        .limit(1)
+        .get();
+      const mesterData = mesterSnap.docs[0]?.data();
+      const mesterName = (mesterData?.name ?? mesterData?.nume ?? 'meșterul') as string;
+
+      await sendPushNotification(
+        contact.userId as string,
+        '⭐ Cum a decurs colaborarea?',
+        `Lasă un rating pentru ${mesterName} — ajuți comunitatea!`,
+        { screen: 'Mesteri' }
+      );
+    }
+  });

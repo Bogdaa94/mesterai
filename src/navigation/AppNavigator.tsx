@@ -30,11 +30,13 @@ import SearchScreen from '../screens/SearchScreen';
 import TermsScreen from '../screens/legal/TermsScreen';
 import PrivacyScreen from '../screens/legal/PrivacyScreen';
 import NotificationsScreen from '../screens/NotificationsScreen';
+import OnboardingScreen from '../screens/OnboardingScreen';
 import {
   registerForPushNotifications,
   setupNotificationHandlers,
   NotificationNavigate,
 } from '../services/notificationsService';
+import { checkOnboardingCompleted } from '../firebase/firestore';
 
 // ── Types ────────────────────────────────────────────────────────────────────
 
@@ -83,11 +85,12 @@ export type RootStackParamList = {
 };
 
 export type AuthStackParamList = {
-  Auth: undefined;
-  Consent: undefined;
-  Main: undefined;
-  Terms: undefined;
-  Privacy: undefined;
+  Auth:       undefined;
+  Consent:    undefined;
+  Onboarding: undefined;
+  Main:       undefined;
+  Terms:      undefined;
+  Privacy:    undefined;
 };
 
 export type TabParamList = {
@@ -98,7 +101,7 @@ export type TabParamList = {
   Profil: undefined;
 };
 
-type FlowState = 'loading' | 'auth' | 'consent' | 'splash' | 'main';
+type FlowState = 'loading' | 'auth' | 'consent' | 'onboarding' | 'splash' | 'main';
 
 const CONSENT_KEY = (uid: string) => `consent_given_${uid}`;
 
@@ -287,6 +290,15 @@ export default function AppNavigator() {
 
   const [flow, setFlow] = useState<FlowState>('loading');
 
+  // Timeout de siguranță: dacă Firebase nu răspunde în 5s pe Android
+  // (cold start production), forțăm trecerea la ecranul de autentificare.
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setFlow(prev => prev === 'loading' ? 'auth' : prev);
+    }, 5000);
+    return () => clearTimeout(timer);
+  }, []);
+
   useEffect(() => {
     if (loading) {
       setFlow('loading');
@@ -296,9 +308,14 @@ export default function AppNavigator() {
       setFlow('auth');
       return;
     }
-    AsyncStorage.getItem(CONSENT_KEY(user.uid)).then((val) => {
+    AsyncStorage.getItem(CONSENT_KEY(user.uid)).then(async (val) => {
       const hasConsent = val === 'true';
-      setFlow(hasConsent ? 'main' : 'consent');
+      if (!hasConsent) {
+        setFlow('consent');
+        return;
+      }
+      const onboardingDone = await checkOnboardingCompleted(user.uid).catch(() => true);
+      setFlow(onboardingDone ? 'main' : 'onboarding');
     });
   }, [user, loading]);
 
@@ -315,7 +332,10 @@ export default function AppNavigator() {
   }
 
   return (
-    <NavigationContainer onStateChange={ping}>
+    <NavigationContainer
+      onStateChange={ping}
+      fallback={<View style={{ flex: 1, backgroundColor: '#1C1C1E' }} />}
+    >
       <AuthStack.Navigator screenOptions={{ headerShown: false }}>
         {flow === 'auth' ? (
           <AuthStack.Screen name="Auth" component={AuthScreen} />
@@ -325,13 +345,22 @@ export default function AppNavigator() {
               {() => (
                 <ConsentScreenWrapper
                   userId={user!.uid}
-                  onConsent={() => setFlow('splash')}
+                  onConsent={() => setFlow('onboarding')}
                 />
               )}
             </AuthStack.Screen>
             <AuthStack.Screen name="Terms"   component={TermsScreen} />
             <AuthStack.Screen name="Privacy" component={PrivacyScreen} />
           </>
+        ) : flow === 'onboarding' ? (
+          <AuthStack.Screen name="Onboarding">
+            {() => (
+              <OnboardingScreen
+                userId={user!.uid}
+                onComplete={() => setFlow('splash')}
+              />
+            )}
+          </AuthStack.Screen>
         ) : (
           <AuthStack.Screen name="Main">
             {() => <MainApp userId={user!.uid} />}

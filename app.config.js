@@ -21,28 +21,51 @@ module.exports = {
       infoPlist: {
         NSUserNotificationUsageDescription:
           'Mester AI îți trimite notificări pentru răspunsuri la forum și actualizări importante.',
+        NSMicrophoneUsageDescription:
+          'Mester AI folosește microfonul pentru a înregistra descrierea problemei tale.',
       },
     },
     android: {
+      icon: './assets/icon.png',
       adaptiveIcon: {
         foregroundImage: './assets/adaptive-icon.png',
-        backgroundColor: '#ffffff',
+        backgroundColor: '#FF6B00',
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
-      package: 'com.mesterai.app',
+      googleServicesFile: './android/app/google-services.json',
+      package: 'com.anonymous.mesterai',
+      permissions: [
+        'CAMERA',
+        'RECORD_AUDIO',
+        'ACCESS_FINE_LOCATION',
+        'ACCESS_COARSE_LOCATION',
+        'POST_NOTIFICATIONS',
+      ],
     },
     web: {
       favicon: './assets/favicon.png',
     },
     plugins: [
+      '@react-native-firebase/app',
       'expo-web-browser',
+      'expo-audio',
       'expo-image-picker',
       'expo-location',
+      [
+        'expo-splash-screen',
+        {
+          image: './assets/splash-icon.png',
+          imageWidth: 200,
+          resizeMode: 'contain',
+          backgroundColor: '#ffffff',
+        },
+      ],
       [
         '@react-native-google-signin/google-signin',
         {
           iosUrlScheme: 'com.googleusercontent.apps.14861675685-sjjrialrr49f37rdm4b8kjo3ttns1cla',
+          androidClientId: '14861675685-9rjgp8ukmg8ll0offp1mf7ej1mbe8udo.apps.googleusercontent.com',
         },
       ],
     ],

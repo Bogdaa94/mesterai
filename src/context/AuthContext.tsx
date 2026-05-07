@@ -54,6 +54,7 @@ if (!IS_EXPO_GO) {
   NativeSignin.configure({
     webClientId: WEB_CLIENT_ID,
     iosClientId: IOS_CLIENT_ID,
+    androidClientId: '14861675685-4jlj0ub1789rn0e0s2pk6vc291jpqpm1.apps.googleusercontent.com',
   });
 }
 

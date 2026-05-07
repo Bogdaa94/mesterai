@@ -17,6 +17,9 @@ const SECTIONS: LegalSection[] = [
       ['Utilizare', 'Istoricul problemelor și conversațiilor AI', 'Funcționarea serviciului, RAG'],
       ['Forum', 'Postări, comentarii, voturi', 'Funcționarea forumului'],
       ['Meșteri', 'Date de contact, locație', 'Directorul de meșteri'],
+      ['Fotografii', 'Imagini atașate de utilizator la descrierea problemei', 'Analiză vizuală AI (Gemini Vision) — nu sunt stocate permanent'],
+      ['Înregistrări audio', 'Clipuri audio înregistrate pentru descrierea problemei (Pro)', 'Transcriere AI — nu sunt stocate permanent'],
+      ['Locație', 'Coordonate GPS (cu acordul explicit al utilizatorului)', 'Găsire meșteri în zonă — stocată în preferințele contului'],
       ['Consimțământ', 'Data și versiunea acceptării', 'Audit legal GDPR'],
     ],
   },
@@ -29,14 +32,25 @@ const SECTIONS: LegalSection[] = [
       ['Autentificare', 'Provider (email/Google/Apple), UID Firebase', 'Securitate cont'],
     ],
   },
-  { type: 'subheading', text: '2.3 Date pe care NU le colectăm' },
+  { type: 'subheading', text: '2.3 Permisiuni utilizate de aplicație' },
+  { type: 'table',
+    headers: ['Permisiune', 'Scop', 'Obligatorie?'],
+    rows: [
+      ['Camera (CAMERA)', 'Fotografierea problemelor din locuință pentru analiză AI', 'Nu — opțional, la cererea utilizatorului'],
+      ['Microfon (RECORD_AUDIO)', 'Înregistrarea descrierii vocale a problemei (funcție Pro)', 'Nu — opțional, activat explicit de utilizator'],
+      ['Locație (ACCESS_FINE_LOCATION)', 'Găsirea meșterilor din zona utilizatorului', 'Nu — opțional, activat explicit din aplicație'],
+      ['Notificări (POST_NOTIFICATIONS)', 'Trimiterea notificărilor despre forum și meșteri', 'Nu — opțional, poate fi dezactivat din sistem'],
+    ],
+  },
+  { type: 'body', text: 'Aplicația solicită fiecare permisiune doar în momentul în care funcția respectivă este folosită pentru prima dată. Poți revoca orice permisiune oricând din Setările dispozitivului.' },
+  { type: 'subheading', text: '2.4 Date pe care NU le colectăm' },
   { type: 'bullet', items: [
     '❌ Date biometrice',
     '❌ Date despre sănătate',
     '❌ Date financiare sau de card',
-    '❌ Locația în timp real',
     '❌ Contacte din telefon',
-    '❌ Fotografii (funcție planificată exclusiv Pro)',
+    '❌ Fotografiile nu sunt stocate pe serverele noastre — sunt trimise direct la Gemini și procesate în timp real',
+    '❌ Înregistrările audio nu sunt stocate — sunt transcrise și șterse imediat',
   ]},
 
   // 3. Cum folosim datele
@@ -56,7 +70,7 @@ const SECTIONS: LegalSection[] = [
   // 4. Cu cine partajăm datele
   { type: 'heading', text: '4. Cu Cine Partajăm Datele' },
   { type: 'subheading', text: '4.1 Google Gemini (procesare AI)' },
-  { type: 'warning', text: '⚠️ Important: Mesajele tale și descrierile problemelor sunt transmise către Google LLC (SUA) pentru procesare prin modelul Gemini. Google nu folosește datele tale pentru antrenarea modelelor Gemini (conform Google Cloud Terms). Transfer internațional: SUA — protejat prin Clauze Contractuale Standard (SCC).' },
+  { type: 'warning', text: '⚠️ Important: Mesajele tale, descrierile problemelor, fotografiile atașate și înregistrările audio sunt transmise către Google LLC (SUA) pentru procesare prin modelul Gemini. Aceste date sunt procesate în timp real și nu sunt stocate de Mester AI. Google nu folosește datele tale pentru antrenarea modelelor Gemini (conform Google Cloud Terms). Transfer internațional: SUA — protejat prin Clauze Contractuale Standard (SCC).' },
   { type: 'link', text: 'Politica de confidențialitate Google', url: 'https://policies.google.com/privacy' },
   { type: 'subheading', text: '4.2 Google Firebase (infrastructură)' },
   { type: 'bullet', items: [
@@ -88,6 +102,9 @@ const SECTIONS: LegalSection[] = [
     rows: [
       ['Date de cont', 'Până la ștergerea contului + 30 zile'],
       ['Istoricul conversațiilor', 'Până la ștergerea contului'],
+      ['Fotografii atașate', 'Nu sunt stocate — procesate în timp real și șterse imediat'],
+      ['Înregistrări audio', 'Nu sunt stocate — transcrise și șterse imediat'],
+      ['Locație GPS', 'Stocată în preferințele contului — ștearsă odată cu contul'],
       ['Consimțământ GDPR', '5 ani (obligație legală de audit)'],
       ['Date forum', 'Până la ștergerea contului / postării'],
       ['Date meșteri', 'Până la retragerea înscrierii + 30 zile'],
@@ -168,7 +185,7 @@ const SECTIONS: LegalSection[] = [
     'Poți contesta deciziile de moderare prin email la contact@mesterai.ro',
   ]},
   { type: 'spacer' },
-  { type: 'body', text: 'Versiunea 1.0 — 2026 | Mester AI — Bogdan D., Brașov, România' },
+  { type: 'body', text: 'Versiunea 1.1 — Aprilie 2026 | Mester AI — Bogdan D., Brașov, România' },
 ];
 
 export default function PrivacyScreen() {

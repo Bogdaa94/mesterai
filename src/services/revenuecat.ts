@@ -8,9 +8,12 @@
  *  1. Creează un Entitlement cu identifier: "pro"
  *  2. Atașează produsele (App Store / Google Play) la entitlement
  *  3. Creează un Offering "default" cu două pachete:
- *       - pachet MONTHLY  → produsul lunar  (34,99 RON)
- *       - pachet ANNUAL   → produsul anual  (299,99 RON)
+ *       - pachet MONTHLY  → produsul lunar  (45,99 RON)
+ *       - pachet ANNUAL   → produsul anual  (413,91 RON, -25%)
  *  4. Pune cheile API în .env → REVENUECAT_IOS_KEY / REVENUECAT_ANDROID_KEY
+ *     IMPORTANT: Folosește chei MOBILE, nu web:
+ *       iOS:     începe cu 'appl_'
+ *       Android: începe cu 'goog_'
  *
  * IMPORTANT: react-native-purchases este un modul nativ.
  * Nu funcționează în Expo Go — necesită EAS Build sau expo prebuild.
@@ -49,9 +52,24 @@ export function initRevenueCat(): void {
     return;
   }
 
-  Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
-  Purchases.configure({ apiKey });
-  initialized = true;
+  // Validare format cheie mobilă
+  if (__DEV__) {
+    const isTestKey = apiKey.startsWith('test_');
+    if (Platform.OS === 'ios' && !isTestKey && !apiKey.startsWith('appl_')) {
+      console.error(`[RevenueCat] ⚠️ iOS key trebuie să înceapă cu 'appl_' sau 'test_'. Ai: ${apiKey.slice(0, 8)}...`);
+    }
+    if (Platform.OS === 'android' && !isTestKey && !apiKey.startsWith('goog_')) {
+      console.error(`[RevenueCat] ⚠️ Android key trebuie să înceapă cu 'goog_' sau 'test_'. Ai: ${apiKey.slice(0, 8)}...`);
+    }
+  }
+
+  try {
+    Purchases.setLogLevel(__DEV__ ? LOG_LEVEL.DEBUG : LOG_LEVEL.ERROR);
+    Purchases.configure({ apiKey });
+    initialized = true;
+  } catch (e) {
+    console.warn('[RevenueCat] Configure failed:', e);
+  }
 }
 
 export function isRcInitialized(): boolean {

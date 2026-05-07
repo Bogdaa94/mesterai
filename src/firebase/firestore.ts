@@ -311,6 +311,99 @@ export async function createReport(
   return docRef.id;
 }
 
+// ─── Onboarding ───────────────────────────────────────────────────────────────
+
+export async function checkOnboardingCompleted(userId: string): Promise<boolean> {
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+  const snap     = await getDoc(prefsRef);
+  return snap.exists() && snap.data().onboardingCompleted === true;
+}
+
+export async function setOnboardingCompleted(userId: string): Promise<void> {
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+  await setDoc(prefsRef, { onboardingCompleted: true }, { merge: true });
+}
+
+export async function saveUserLocation(
+  userId: string,
+  lat:    number,
+  lng:    number
+): Promise<void> {
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+  await setDoc(prefsRef, { location: { lat, lng }, locationEnabled: true }, { merge: true });
+}
+
+export async function setLocationDisabled(userId: string): Promise<void> {
+  const prefsRef = doc(db, 'users', userId, 'preferences', 'settings');
+  await setDoc(prefsRef, { locationEnabled: false }, { merge: true });
+}
+
+// ─── Ratings — evaluări meșteri ──────────────────────────────────────────────
+// Structură: /ratings/{ratingId}
+
+export interface RatingData {
+  mesterId:     string;
+  mesterUserId: string;
+  userId:       string;
+  rating:       number; // 1–5
+  comment?:     string;
+  createdAt:    Timestamp | null;
+}
+
+export async function submitRating(
+  data: Omit<RatingData, 'createdAt'>
+): Promise<void> {
+  await addDoc(collection(db, 'ratings'), {
+    ...data,
+    createdAt: serverTimestamp(),
+  });
+}
+
+export async function checkAlreadyRated(
+  mesterId: string,
+  userId: string
+): Promise<boolean> {
+  const q    = query(
+    collection(db, 'ratings'),
+    where('mesterId', '==', mesterId),
+    where('userId',   '==', userId)
+  );
+  const snap = await getDocs(q);
+  return !snap.empty;
+}
+
+// ─── Contact events — tracking WhatsApp contactări ───────────────────────────
+// Structură: /contact_events/{eventId}
+
+export async function saveContactEvent(
+  userId:       string,
+  mesterId:     string,
+  mesterUserId: string
+): Promise<void> {
+  // Salvează o singură dată per pereche user-mester
+  const q    = query(
+    collection(db, 'contact_events'),
+    where('userId',   '==', userId),
+    where('mesterId', '==', mesterId)
+  );
+  const snap = await getDocs(q);
+  if (!snap.empty) return;
+
+  await addDoc(collection(db, 'contact_events'), {
+    userId,
+    mesterId,
+    mesterUserId,
+    contactedAt:      serverTimestamp(),
+    notificationSent: false,
+  });
+}
+
+export async function getUserContactedMesters(userId: string): Promise<Set<string>> {
+  const q    = query(collection(db, 'contact_events'), where('userId', '==', userId));
+  const snap = await getDocs(q);
+  return new Set(snap.docs.map((d) => d.data().mesterId as string));
+}
+
 // ─── RAG — Conversații validate ───────────────────────────────────────────────
 
 export interface ValidatedConversation {

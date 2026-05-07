@@ -11,7 +11,15 @@ import {
   ActivityIndicator,
   Alert,
   StyleSheet,
+  Animated,
+  Linking,
 } from 'react-native';
+import {
+  useAudioRecorder,
+  requestRecordingPermissionsAsync,
+  setAudioModeAsync,
+  RecordingPresets,
+} from 'expo-audio';
 import * as ImagePicker from 'expo-image-picker';
 import { RouteProp, useNavigation, useRoute } from '@react-navigation/native';
 import { StackNavigationProp } from '@react-navigation/stack';
@@ -23,7 +31,7 @@ import { useTheme } from '../context/ThemeContext';
 import { useAuth } from '../context/AuthContext';
 import { usePro } from '../context/ProContext';
 import { brand } from '../theme/colors';
-import { askMester, ChatMessage } from '../services/gemini';
+import { askMester, transcribeAudio, ChatMessage } from '../services/gemini';
 import { saveProblem } from '../firebase/firestore';
 import { HomeStackParamList, HistoryStackParamList, RootStackParamList, DiagnosticParams } from '../navigation/AppNavigator';
 import AIMessage from '../components/AIMessage';
@@ -40,6 +48,28 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const FREE_PHOTO_LIMIT = 1;
+
+// Citește fișier local ca base64 (fără expo-file-system)
+function readFileAsBase64(uri: string): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const xhr = new XMLHttpRequest();
+    xhr.open('GET', uri);
+    xhr.responseType = 'arraybuffer';
+    xhr.onload = () => {
+      try {
+        const bytes = new Uint8Array(xhr.response as ArrayBuffer);
+        let binary = '';
+        const chunk = 0x8000;
+        for (let i = 0; i < bytes.length; i += chunk) {
+          binary += String.fromCharCode(...bytes.subarray(i, i + chunk));
+        }
+        resolve(btoa(binary));
+      } catch (err) { reject(err); }
+    };
+    xhr.onerror = reject;
+    xhr.send();
+  });
+}
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 
@@ -131,13 +161,21 @@ export default function DiagnosticScreen() {
   const [pendingImageBase64, setPendingImageBase64] = useState<string | null>(null);
   const [photoCount, setPhotoCount] = useState(0);
 
+  // Vocal state
+  const [isRecording, setIsRecording]       = useState(false);
+  const [isTranscribing, setIsTranscribing] = useState(false);
+  const audioRecorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
+  const pulseAnim     = useRef(new Animated.Value(1)).current;
+  const pulseLoopRef  = useRef<Animated.CompositeAnimation | null>(null);
+
   const scrollRef = useRef<ScrollView>(null);
   const typewriterRef = useRef<ReturnType<typeof setInterval> | null>(null);
 
-  // Cleanup interval la unmount
+  // Cleanup la unmount — expo-audio gestionează automat recorder-ul
   useEffect(() => {
     return () => {
       if (typewriterRef.current) clearInterval(typewriterRef.current);
+      pulseLoopRef.current?.stop();
     };
   }, []);
 
@@ -175,21 +213,23 @@ export default function DiagnosticScreen() {
     });
   };
 
-  const typeMessage = (fullText: string, onDone: () => void) => {
+  const typeMessage = (fullText: string, onDone: (finalText: string) => void) => {
     // Anulează orice interval anterior
     if (typewriterRef.current) clearInterval(typewriterRef.current);
 
     let index = 0;
     typewriterRef.current = setInterval(() => {
       index += 3;
-      updateLastAiMessage(fullText.substring(0, index));
-      scrollToBottom();
-      if (index >= fullText.length) {
+      if (index < fullText.length) {
+        // Actualizare parțială — text în curs de „scriere"
+        updateLastAiMessage(fullText.substring(0, index));
+        scrollToBottom();
+      } else {
+        // Terminat — textul complet + oprire loading se fac în caller (atomic)
         clearInterval(typewriterRef.current!);
         typewriterRef.current = null;
-        updateLastAiMessage(fullText); // text complet la final
         scrollToBottom();
-        onDone();
+        onDone(fullText);
       }
     }, 16); // ~60fps
   };
@@ -284,20 +324,93 @@ export default function DiagnosticScreen() {
     return { safe: true, sanitized };
   };
 
-  // ── Mic ──────────────────────────────────────────────────────────────────────
+  // ── Pulse animation ───────────────────────────────────────────────────────────
 
-  const handleMic = () => {
+  const startPulse = () => {
+    pulseLoopRef.current = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, { toValue: 1.35, duration: 450, useNativeDriver: true }),
+        Animated.timing(pulseAnim, { toValue: 1.0,  duration: 450, useNativeDriver: true }),
+      ])
+    );
+    pulseLoopRef.current.start();
+  };
+
+  const stopPulse = () => {
+    pulseLoopRef.current?.stop();
+    pulseLoopRef.current = null;
+    pulseAnim.setValue(1);
+  };
+
+  // ── Mic — înregistrare vocală Pro ─────────────────────────────────────────────
+
+  const handleMic = async () => {
     if (!isPro) {
       navigation.navigate('Paywall');
       return;
     }
-    Alert.alert('🎤', t('diagnostic.comingSoon'));
+
+    // ── Stop & transcriere ────────────────────────────────────────────────────
+    if (isRecording) {
+      setIsRecording(false);
+      stopPulse();
+      try {
+        await audioRecorder.stop();
+        const uri = audioRecorder.uri;
+        await setAudioModeAsync({ allowsRecording: false, playsInSilentMode: false });
+
+        if (!uri) throw new Error('URI lipsă');
+
+        setIsTranscribing(true);
+        const base64      = await readFileAsBase64(uri);
+        const transcribed = await transcribeAudio(base64, 'audio/mp4');
+        setIsTranscribing(false);
+
+        if (transcribed) {
+          setInput(transcribed);
+          handleSend(transcribed);
+        }
+      } catch {
+        setIsTranscribing(false);
+        Alert.alert('Eroare', 'Nu s-a putut procesa înregistrarea. Încearcă din nou.');
+      }
+      return;
+    }
+
+    // ── Start înregistrare ────────────────────────────────────────────────────
+    try {
+      const { granted } = await requestRecordingPermissionsAsync();
+      if (!granted) {
+        Alert.alert(
+          'Permisiune necesară',
+          'Activează microfonul din Setări → Mester AI → Microfon',
+          [
+            { text: 'Anulează', style: 'cancel' },
+            { text: 'Deschide Setări', onPress: () => Linking.openSettings() },
+          ]
+        );
+        return;
+      }
+
+      await setAudioModeAsync({
+        allowsRecording: true,
+        playsInSilentMode: true,
+      });
+
+      await audioRecorder.prepareToRecordAsync();
+      audioRecorder.record();
+      setIsRecording(true);
+      startPulse();
+    } catch {
+      Alert.alert('Eroare', 'Nu s-a putut porni microfonul. Încearcă din nou.');
+    }
   };
 
   // ── Send ─────────────────────────────────────────────────────────────────────
 
-  const handleSend = async () => {
-    const text = input.trim();
+  const handleSend = async (overrideText?: string) => {
+    // overrideText vine din voice flow (string) sau din onPress (GestureResponderEvent → ignorat)
+    const text = (typeof overrideText === 'string' ? overrideText : input).trim();
     if ((!text && !pendingImageUri) || loading) return;
     ping();
 
@@ -373,8 +486,18 @@ export default function DiagnosticScreen() {
         i18n.language
       );
 
-      // Pornește efectul de typewriter; dezactivează loading când termină
-      typeMessage(aiText, () => {
+      // Pornește efectul de typewriter.
+      // onDone primește textul complet și face ambele actualizări atomic:
+      // setMessages (textul final) ÎNAINTE de setLoading(false).
+      typeMessage(aiText, (finalText) => {
+        setMessages(prev => {
+          const copy     = [...prev];
+          const lastIdx  = copy.length - 1;
+          if (lastIdx >= 0 && copy[lastIdx].role === 'ai') {
+            copy[lastIdx] = { ...copy[lastIdx], text: finalText };
+          }
+          return copy;
+        });
         setLoading(false);
       });
 
@@ -405,7 +528,7 @@ export default function DiagnosticScreen() {
     }
   };
 
-  const canSend = (!!input.trim() || !!pendingImageUri) && !loading;
+  const canSend = (!!input.trim() || !!pendingImageUri) && !loading && !isRecording && !isTranscribing;
 
   return (
     <View style={[styles.root, { backgroundColor: colors.bgPage }]}>
@@ -488,12 +611,22 @@ export default function DiagnosticScreen() {
         {/* Input bar */}
         <View style={[styles.inputBar, { backgroundColor: colors.bgApp, borderTopColor: colors.border, paddingBottom: insets.bottom || 12 }]}>
           {/* Mic */}
-          <TouchableOpacity style={styles.iconBtn} onPress={handleMic}>
-            <Ionicons
-              name={isPro ? 'mic' : 'mic-outline'}
-              size={22}
-              color={isPro ? brand.orange : colors.textSecondary}
-            />
+          <TouchableOpacity
+            style={styles.iconBtn}
+            onPress={handleMic}
+            disabled={isTranscribing}
+          >
+            {isTranscribing ? (
+              <ActivityIndicator size="small" color={brand.orange} />
+            ) : (
+              <Animated.View style={{ transform: [{ scale: isRecording ? pulseAnim : 1 }] }}>
+                <Ionicons
+                  name="mic"
+                  size={22}
+                  color={isRecording ? '#FF3B30' : isPro ? brand.orange : colors.textSecondary}
+                />
+              </Animated.View>
+            )}
           </TouchableOpacity>
 
           <TextInput

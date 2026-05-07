@@ -6,4 +6,6 @@ export {
   onNegativeFeedback,
   checkExpiringSubscriptions,
   onProActivated,
+  onNewRating,
+  checkRatingReminders,
 } from './notifications';

@@ -253,6 +253,16 @@
     color: #FFB347;
     line-height: 1.6;
   }
+  .info-box {
+    background: rgba(21,101,192,0.08);
+    border: 1px solid rgba(21,101,192,0.25);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin: 16px 0;
+    font-size: 0.85rem;
+    color: #90CAF9;
+    line-height: 1.6;
+  }
 
   /* TABS */
   .tabs {
@@ -382,58 +392,171 @@
 <!-- LEGAL SECTION -->
 <div class="legal-section">
   <div class="tabs">
-    <button class="tab-btn active" onclick="showTab('privacy')">🔒 Politică de Confidențialitate</button>
-    <button class="tab-btn" onclick="showTab('terms')">📋 Termeni și Condiții</button>
+    <button class="tab-btn active" onclick="showTab('privacy', this)">🔒 Politică de Confidențialitate</button>
+    <button class="tab-btn" onclick="showTab('terms', this)">📋 Termeni și Condiții</button>
   </div>
 
-  <!-- PRIVACY POLICY -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- PRIVACY POLICY                                         -->
+  <!-- ═══════════════════════════════════════════════════════ -->
   <div id="privacy" class="tab-content active">
     <div class="legal-title">Politică de Confidențialitate</div>
-    <div class="legal-updated">Ultima actualizare: Aprilie 2026 · Versiunea 1.0</div>
+    <div class="legal-updated">Ultima actualizare: Aprilie 2026 · Versiunea 1.1</div>
 
     <div class="warning-box">
-      ⚠️ Mester AI folosește Google Gemini AI pentru procesarea mesajelor tale. Prin utilizarea aplicației, ești de acord ca descrierile problemelor să fie trimise către Google LLC pentru generarea răspunsurilor.
+      ⚠️ Mester AI folosește Google Gemini AI pentru procesarea mesajelor tale. Prin utilizarea aplicației, ești de acord ca descrierile problemelor, fotografiile atașate și înregistrările audio să fie trimise către Google LLC pentru generarea răspunsurilor. Aceste date sunt procesate în timp real și nu sunt stocate permanent de Mester AI.
     </div>
 
     <h2>1. Cine suntem</h2>
-    <p>Mester AI este o aplicație mobilă dezvoltată și operată de Bogdan [NUMELE DE FAMILIE], România. Contact: contact@mesterai.ro</p>
+    <p>Mester AI este o aplicație mobilă dezvoltată și operată de Bogdan D., Brașov, România.</p>
+    <p>Contact: <a href="mailto:contact@mesterai.ro" style="color:var(--orange)">contact@mesterai.ro</a></p>
 
     <h2>2. Ce date colectăm</h2>
+
+    <h3>2.1 Date furnizate de tine</h3>
     <table>
       <tr><th>Categorie</th><th>Date</th><th>Scop</th></tr>
-      <tr><td>Cont</td><td>Nume, email</td><td>Autentificare</td></tr>
-      <tr><td>Utilizare</td><td>Istoricul problemelor</td><td>Funcționarea serviciului</td></tr>
-      <tr><td>Forum</td><td>Postări, comentarii</td><td>Comunitate</td></tr>
-      <tr><td>Consimțământ</td><td>Data acceptării</td><td>Audit legal GDPR</td></tr>
+      <tr><td>Cont</td><td>Nume, adresă email</td><td>Autentificare, comunicare</td></tr>
+      <tr><td>Utilizare</td><td>Istoricul problemelor și conversațiilor AI</td><td>Funcționarea serviciului, RAG</td></tr>
+      <tr><td>Forum</td><td>Postări, comentarii, voturi</td><td>Funcționarea forumului</td></tr>
+      <tr><td>Meșteri</td><td>Date de contact, locație</td><td>Directorul de meșteri</td></tr>
+      <tr><td>Fotografii</td><td>Imagini atașate la descrierea problemei</td><td>Analiză vizuală AI (Gemini Vision) — <strong>nu sunt stocate permanent</strong></td></tr>
+      <tr><td>Înregistrări audio</td><td>Clipuri audio pentru descrierea problemei (Pro)</td><td>Transcriere AI — <strong>nu sunt stocate permanent</strong></td></tr>
+      <tr><td>Locație GPS</td><td>Coordonate geografice (cu acordul explicit)</td><td>Găsire meșteri din zonă — stocată în preferințele contului</td></tr>
+      <tr><td>Consimțământ</td><td>Data și versiunea acceptării</td><td>Audit legal GDPR</td></tr>
     </table>
-    <p><strong>Nu colectăm:</strong> date biometrice, date financiare, locație în timp real, contacte din telefon.</p>
 
-    <h2>3. Cu cine partajăm datele</h2>
-    <h3>Google Gemini</h3>
-    <p>Mesajele tale sunt trimise către Google LLC (SUA) pentru procesare AI. Google nu folosește datele pentru antrenarea modelelor. Transfer protejat prin Clauze Contractuale Standard (SCC).</p>
-    <h3>Google Firebase</h3>
-    <p>Infrastructură de autentificare și stocare date. Servere în Europa (eu-west).</p>
-    <h3>RevenueCat</h3>
-    <p>Gestionarea abonamentelor Pro. Nu primește date de card.</p>
-    <p><strong>Nu vindem datele tale.</strong></p>
+    <h3>2.2 Date colectate automat</h3>
+    <table>
+      <tr><th>Categorie</th><th>Date</th><th>Scop</th></tr>
+      <tr><td>Tehnice</td><td>Tip dispozitiv, OS, versiune app</td><td>Depanare tehnică</td></tr>
+      <tr><td>Utilizare</td><td>Ultima activitate, frecvența utilizării</td><td>Îmbunătățirea serviciului</td></tr>
+      <tr><td>Autentificare</td><td>Provider (email/Google/Apple), UID Firebase</td><td>Securitate cont</td></tr>
+    </table>
 
-    <h2>4. Drepturile tale (GDPR)</h2>
+    <h3>2.3 Permisiuni utilizate de aplicație</h3>
+    <div class="info-box">
+      ℹ️ Aplicația solicită fiecare permisiune <strong>doar în momentul în care funcția respectivă este activată pentru prima dată</strong>. Nicio permisiune nu este solicitată la instalare. Poți revoca orice permisiune oricând din Setările dispozitivului.
+    </div>
+    <table>
+      <tr><th>Permisiune</th><th>Scop</th><th>Obligatorie?</th></tr>
+      <tr>
+        <td>📷 Cameră<br><small style="color:var(--muted)">android.permission.CAMERA</small></td>
+        <td>Fotografierea problemelor din locuință pentru analiză AI vizuală</td>
+        <td>Nu — opțional, activat explicit de utilizator</td>
+      </tr>
+      <tr>
+        <td>🎙️ Microfon<br><small style="color:var(--muted)">android.permission.RECORD_AUDIO</small></td>
+        <td>Înregistrarea descrierii vocale a problemei (funcție Pro)</td>
+        <td>Nu — opțional, activat explicit de utilizator</td>
+      </tr>
+      <tr>
+        <td>📍 Locație<br><small style="color:var(--muted)">android.permission.ACCESS_FINE_LOCATION</small></td>
+        <td>Găsirea meșterilor din zona utilizatorului</td>
+        <td>Nu — opțional, activat explicit din aplicație</td>
+      </tr>
+      <tr>
+        <td>🔔 Notificări<br><small style="color:var(--muted)">android.permission.POST_NOTIFICATIONS</small></td>
+        <td>Trimiterea notificărilor despre forum, meșteri și abonament</td>
+        <td>Nu — opțional, poate fi dezactivat din sistem</td>
+      </tr>
+    </table>
+
+    <h3>2.4 Date pe care NU le colectăm</h3>
     <ul>
-      <li><strong>Acces</strong> — să știi ce date deținem → contact@mesterai.ro</li>
-      <li><strong>Ștergere</strong> — Setări → Șterge contul (automat)</li>
-      <li><strong>Portabilitate</strong> — datele în format electronic → email</li>
-      <li><strong>Retragere consimțământ</strong> — Setări → Confidențialitate</li>
+      <li>❌ Date biometrice</li>
+      <li>❌ Date despre sănătate</li>
+      <li>❌ Date financiare sau de card</li>
+      <li>❌ Contacte din telefon</li>
+      <li>❌ Fotografiile nu sunt stocate pe serverele noastre — sunt trimise direct la Gemini și procesate în timp real</li>
+      <li>❌ Înregistrările audio nu sunt stocate — sunt transcrise și șterse imediat după procesare</li>
     </ul>
 
-    <h2>5. Transparență AI (EU AI Act)</h2>
-    <p>Mester AI este clasificat ca sistem AI cu <strong>risc scăzut</strong>. Toate răspunsurile AI sunt marcate vizibil în aplicație. Procesorul AI: Google LLC prin modelul Gemini 2.0 Flash.</p>
+    <h2>3. Cu cine partajăm datele</h2>
 
-    <h2>6. Contact & ANSPDCP</h2>
-    <p>Email: contact@mesterai.ro</p>
-    <p>Poți depune plângere la ANSPDCP: <a href="https://www.anspdcp.ro" style="color:var(--orange)">anspdcp.ro</a></p>
+    <h3>Google Gemini (procesare AI)</h3>
+    <div class="warning-box">
+      ⚠️ Mesajele tale, descrierile problemelor, fotografiile atașate și înregistrările audio sunt transmise către Google LLC (SUA) pentru procesare prin modelul Gemini 2.0 Flash. Aceste date sunt procesate în timp real și nu sunt stocate de Mester AI. Google nu folosește datele tale pentru antrenarea modelelor Gemini (conform Google Cloud Terms). Transfer internațional protejat prin Clauze Contractuale Standard (SCC).
+    </div>
+    <p><a href="https://policies.google.com/privacy" style="color:var(--orange)" target="_blank">Politica de confidențialitate Google →</a></p>
+
+    <h3>Google Firebase (infrastructură)</h3>
+    <ul>
+      <li>Firebase Authentication — gestionarea conturilor</li>
+      <li>Cloud Firestore — stocarea datelor</li>
+      <li>Serverele sunt localizate în Europa (eu-west)</li>
+    </ul>
+    <p><a href="https://cloud.google.com/terms/data-processing-addendum" style="color:var(--orange)" target="_blank">Google Cloud Data Processing Addendum →</a></p>
+
+    <h3>RevenueCat (gestionare abonamente)</h3>
+    <p>Procesează informații despre abonamentul tău Pro. Nu primește date de card — acestea rămân la Apple/Google.</p>
+    <p><a href="https://www.revenuecat.com/privacy" style="color:var(--orange)" target="_blank">Politica de confidențialitate RevenueCat →</a></p>
+
+    <h3>Apple / Google (plăți)</h3>
+    <p>Procesează plățile pentru abonamente Pro. Datele financiare sunt gestionate exclusiv de Apple/Google.</p>
+
+    <p style="margin-top:16px"><strong>Mester AI nu vinde, nu închiriază și nu comercializează datele tale personale către terți.</strong></p>
+
+    <h2>4. Cât timp păstrăm datele</h2>
+    <table>
+      <tr><th>Categorie</th><th>Perioadă de retenție</th></tr>
+      <tr><td>Date de cont</td><td>Până la ștergerea contului + 30 zile</td></tr>
+      <tr><td>Istoricul conversațiilor</td><td>Până la ștergerea contului</td></tr>
+      <tr><td>Fotografii atașate</td><td>Nu sunt stocate — procesate în timp real și șterse imediat</td></tr>
+      <tr><td>Înregistrări audio</td><td>Nu sunt stocate — transcrise și șterse imediat</td></tr>
+      <tr><td>Locație GPS</td><td>Stocată în preferințele contului — ștearsă odată cu contul</td></tr>
+      <tr><td>Consimțământ GDPR</td><td>5 ani (obligație legală de audit)</td></tr>
+      <tr><td>Date forum</td><td>Până la ștergerea contului / postării</td></tr>
+      <tr><td>Date meșteri</td><td>Până la retragerea înscrierii + 30 zile</td></tr>
+      <tr><td>Date anonimizate RAG</td><td>Nelimitat (nu conțin date personale)</td></tr>
+    </table>
+
+    <h2>5. Drepturile tale (GDPR)</h2>
+    <table>
+      <tr><th>Drept</th><th>Cum îl exerciți</th></tr>
+      <tr><td>Acces — să știi ce date deținem</td><td>Email la contact@mesterai.ro</td></tr>
+      <tr><td>Rectificare — corectarea datelor incorecte</td><td>Din Setări sau email</td></tr>
+      <tr><td>Ștergere — „dreptul de a fi uitat"</td><td>Setări → Șterge contul (automat)</td></tr>
+      <tr><td>Portabilitate — datele în format electronic</td><td>Email la contact@mesterai.ro</td></tr>
+      <tr><td>Opoziție — să te opui prelucrării</td><td>Email la contact@mesterai.ro</td></tr>
+      <tr><td>Retragere consimțământ</td><td>Setări → Confidențialitate</td></tr>
+      <tr><td>Restricționare — limitarea prelucrării</td><td>Email la contact@mesterai.ro</td></tr>
+    </table>
+    <p>Răspundem în maxim 30 de zile de la solicitare.</p>
+
+    <h2>6. Transparență AI (EU AI Act)</h2>
+    <ul>
+      <li>Ești informat că Mester AI folosește sisteme AI generative</li>
+      <li>Mester AI este clasificat ca sistem AI cu <strong>risc scăzut</strong> (asistență informativă)</li>
+      <li>Toate răspunsurile AI sunt marcate vizibil în aplicație</li>
+      <li>Nu luăm decizii automate cu efect juridic sau impact semnificativ asupra ta</li>
+    </ul>
+    <p>Procesorul AI: Google LLC, prin modelul <strong>Gemini 2.0 Flash</strong>.</p>
+
+    <h2>7. Securitatea datelor</h2>
+    <ul>
+      <li>Criptare în tranzit: TLS 1.3</li>
+      <li>Criptare la repaus: Firebase encryption at-rest</li>
+      <li>Autentificare: Firebase Auth cu token-uri securizate</li>
+      <li>Acces restricționat: Security Rules Firestore — fiecare utilizator accesează doar propriile date</li>
+    </ul>
+
+    <h2>8. Copii și minori</h2>
+    <p>Serviciul este destinat persoanelor cu vârsta minimă de <strong>16 ani</strong> (conform GDPR Art. 8 pentru România). Nu colectăm intenționat date de la persoane sub 16 ani.</p>
+
+    <h2>9. Modificări ale politicii</h2>
+    <p>Vom notifica utilizatorii cu cel puțin 15 zile înainte de orice modificare semnificativă prin notificare în aplicație.</p>
+
+    <h2>10. Contact & Autoritate de supraveghere</h2>
+    <p>Email: <a href="mailto:contact@mesterai.ro" style="color:var(--orange)">contact@mesterai.ro</a></p>
+    <p>Poți depune o plângere la ANSPDCP: <a href="https://www.anspdcp.ro" style="color:var(--orange)" target="_blank">anspdcp.ro</a> · anspdcp@dataprotection.ro</p>
+
+    <p style="margin-top:32px;color:var(--muted);font-size:0.78rem">Versiunea 1.1 — Aprilie 2026 | Mester AI — Bogdan D., Brașov, România</p>
   </div>
 
-  <!-- TERMS -->
+  <!-- ═══════════════════════════════════════════════════════ -->
+  <!-- TERMS & CONDITIONS                                      -->
+  <!-- ═══════════════════════════════════════════════════════ -->
   <div id="terms" class="tab-content">
     <div class="legal-title">Termeni și Condiții</div>
     <div class="legal-updated">Ultima actualizare: Aprilie 2026 · Versiunea 1.0</div>
@@ -443,7 +566,7 @@
     </div>
 
     <h2>1. Despre Mester AI</h2>
-    <p>Mester AI este o platformă digitală de asistență pentru probleme de locuință, disponibilă pe iOS și Android, dezvoltată de Bogdan [NUMELE DE FAMILIE], România.</p>
+    <p>Mester AI este o platformă digitală de asistență pentru probleme de locuință, disponibilă pe iOS și Android, dezvoltată de Bogdan D., Brașov, România.</p>
 
     <h2>2. Vârsta minimă</h2>
     <p>Serviciul este destinat persoanelor cu vârsta de minimum <strong>16 ani</strong>.</p>
@@ -452,8 +575,8 @@
     <table>
       <tr><th>Plan</th><th>Preț</th><th>Include</th></tr>
       <tr><td>Free</td><td>Gratuit</td><td>3 conversații AI/zi</td></tr>
-      <tr><td>Pro Lunar</td><td>34,99 RON/lună</td><td>Nelimitat + toate funcțiile</td></tr>
-      <tr><td>Pro Anual</td><td>299,99 RON/an</td><td>Nelimitat + economisești 28%</td></tr>
+      <tr><td>Pro Lunar</td><td>45,99 RON/lună</td><td>Nelimitat + toate funcțiile</td></tr>
+      <tr><td>Pro Anual</td><td>413,91 RON/an (~34,49 RON/lună)</td><td>Nelimitat + economisești 25%</td></tr>
     </table>
     <p>Abonamentele se reînnoiesc automat. Poți anula oricând din Setările App Store / Google Play cu minimum 24h înainte de reînnoire.</p>
 
@@ -467,7 +590,7 @@
     <p>Răspunsurile sunt generate de <strong>Google Gemini 2.0 Flash</strong> și au caracter informativ. Mester AI nu este responsabil pentru daune rezultate din aplicarea recomandărilor AI fără consultarea unui specialist autorizat.</p>
 
     <h2>7. Contact</h2>
-    <p>Email: contact@mesterai.ro</p>
+    <p>Email: <a href="mailto:contact@mesterai.ro" style="color:var(--orange)">contact@mesterai.ro</a></p>
   </div>
 </div>
 
@@ -478,24 +601,23 @@
     Mester AI
   </div>
   <div class="footer-links">
-    <a href="#privacy" onclick="showTab('privacy')">Confidențialitate</a>
-    <a href="#terms" onclick="showTab('terms')">Termeni</a>
+    <a href="#privacy" onclick="showTab('privacy', this)">Confidențialitate</a>
+    <a href="#terms" onclick="showTab('terms', this)">Termeni</a>
     <a href="mailto:contact@mesterai.ro">Contact</a>
   </div>
   <div class="footer-copy">© 2026 Mester AI · România</div>
 </footer>
 
 <script>
-  function showTab(tab) {
+  function showTab(tab, btn) {
     document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
     document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
     document.getElementById(tab).classList.add('active');
-    event.target.classList.add('active');
+    if (btn) btn.classList.add('active');
+    else document.querySelector('[onclick*="' + tab + '"]').classList.add('active');
     document.querySelector('.legal-section').scrollIntoView({ behavior: 'smooth' });
   }
 </script>
 
 </body>
 </html>
-
-
