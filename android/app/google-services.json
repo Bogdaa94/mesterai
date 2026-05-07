@@ -1,0 +1,54 @@
+{
+  "project_info": {
+    "project_number": "14861675685",
+    "project_id": "mesterai-eeef7",
+    "storage_bucket": "mesterai-eeef7.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:14861675685:android:7ebd9c879dd71c33d4b14c",
+        "android_client_info": {
+          "package_name": "com.anonymous.mesterai"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "14861675685-4jlj0ub1789rn0e0s2pk6vc291jpqpm1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.anonymous.mesterai",
+            "certificate_hash": "9350340230c0ab8355e2c0bf40d6089c4192da44"
+          }
+        },
+        {
+          "client_id": "14861675685-9rjgp8ukmg8ll0offp1mf7ej1mbe8udo.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBtDvzbtgQS9R1NHf1UUktBhDZs8XbdlT0"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "14861675685-9rjgp8ukmg8ll0offp1mf7ej1mbe8udo.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "14861675685-sjjrialrr49f37rdm4b8kjo3ttns1cla.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.anonymous.mesterai"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
