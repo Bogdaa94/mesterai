@@ -33,7 +33,7 @@ module.exports = {
       },
       edgeToEdgeEnabled: true,
       predictiveBackGestureEnabled: false,
-      googleServicesFile: './android/app/google-services.json',
+      googleServicesFile: './google-services.json',
       package: 'com.anonymous.mesterai',
       permissions: [
         'CAMERA',
